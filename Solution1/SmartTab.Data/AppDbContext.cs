@@ -17,6 +17,12 @@ public class AppDbContext : DbContext
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
     public DbSet<BuildPart> BuildParts { get; set; } = null!;
+    public DbSet<Manufacturer> Manufacturers { get; set; } = null!;
+    public DbSet<ShoppingCart> ShoppingCarts { get; set; } = null!;
+    public DbSet<CartItem> CartItems { get; set; } = null!;
+    public DbSet<CartItemOption> CartItemOptions { get; set; } = null!;
+    public DbSet<OrderItemOption> OrderItemOptions { get; set; } = null!;
+    public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,5 +69,23 @@ public class AppDbContext : DbContext
             .WithMany(p => p.PartOfPcs)
             .HasForeignKey(bp => bp.ComponentId)
             .OnDelete(DeleteBehavior.Restrict); // поки компонент в збірці, ніт.
+
+        modelBuilder.Entity<CartItemOption>()
+            .HasOne(co => co.Component)
+            .WithMany()
+            .HasForeignKey(co => co.ComponentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<OrderItemOption>()
+            .HasOne(oo => oo.Component)
+            .WithMany()
+            .HasForeignKey(oo => oo.ComponentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<InventoryItem>()
+            .HasOne(i => i.Product)
+            .WithMany()
+            .HasForeignKey(i => i.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

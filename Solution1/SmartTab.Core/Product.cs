@@ -12,6 +12,8 @@ public class Product
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
 
+    public int ManufacturerId { get; set; }
+    public Manufacturer Manufacturer { get; set; } = null!;
     public int CategoryId { get; set; }
     public Category Category { get; set; } = null!;
     public ProductType Type { get; set; } = ProductType.Component;
