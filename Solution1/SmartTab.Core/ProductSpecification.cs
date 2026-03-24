@@ -1,4 +1,3 @@
-// SmartTab.Core/ProductSpecification.cs
 namespace SmartTab.Core
 {
     public class ProductSpecification
