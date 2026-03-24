@@ -86,7 +86,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<InventoryItem>()
             .HasOne(i => i.Product)
-            .WithMany()
+            .WithMany(p => p.InventoryItems)
             .HasForeignKey(i => i.ProductId)
             .OnDelete(DeleteBehavior.Restrict);
     }

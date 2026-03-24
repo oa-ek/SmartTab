@@ -11,6 +11,7 @@ public class Product
     [Range(0.01, 1000000, ErrorMessage = "Ціна повинна бути більшою за 0")]
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
+    public int StockCount { get; set; } = 0;
 
     public int? ManufacturerId { get; set; }
     public Manufacturer? Manufacturer { get; set; }
@@ -23,4 +24,5 @@ public class Product
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
     public ICollection<BuildPart> PcParts { get; set; } = new List<BuildPart>();
     public ICollection<BuildPart> PartOfPcs { get; set; } = new List<BuildPart>();
+    public ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();
 }
