@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace SmartTab.Core
 {
-    internal class ProductType
+    public enum ProductType
     {
+        Component = 0,
+            BuiltPc = 1
     }
 }

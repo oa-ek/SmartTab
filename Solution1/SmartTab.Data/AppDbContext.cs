@@ -66,4 +66,4 @@ public class AppDbContext : DbContext
             .HasForeignKey(bp => bp.ComponentId)
             .OnDelete(DeleteBehavior.Restrict); // поки компонент в збірці, ніт.
     }
-}я
+}
