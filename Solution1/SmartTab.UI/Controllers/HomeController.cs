@@ -284,7 +284,7 @@ namespace SmartTab.UI.Controllers
                     CategoryId = categoryId,
                     ManufacturerId = manufacturerId > 0 ? manufacturerId : null,
                     Type = (ProductType)productType,
-                    StockCount = stockCount + initialQuantity,
+                    StockCount = stockCount, // Беремо значення, яке вписав адмін
                     InitialQuantity = initialQuantity
                 };
 
@@ -407,7 +407,7 @@ namespace SmartTab.UI.Controllers
                 }
 
                 _context.InventoryItems.RemoveRange(product.InventoryItems);
-                _context.Set<ProductSpecification>().RemoveRange(product.Specifications);
+                _context.Set<ProductSpecification>().RemoveRange(product.Specifications); // Безпечне видалення
                 _context.Products.Remove(product);
                 await _context.SaveChangesAsync();
 
@@ -420,7 +420,7 @@ namespace SmartTab.UI.Controllers
         }
 
         [HttpPut("api/products/{id}")]
-        public async Task<IActionResult> UpdateProduct(int id, [FromForm] string name, [FromForm] decimal price, [FromForm] int categoryId, [FromForm] int productType, [FromForm] int stockCount, [FromForm] int manufacturerId, [FromForm] string specsJson, IFormFile? image)
+        public async Task<IActionResult> UpdateProduct(int id, [FromForm] string name, [FromForm] decimal price, [FromForm] int categoryId, [FromForm] int productType, [FromForm] int stockCount, [FromForm] int manufacturerId, [FromForm] int initialQuantity, [FromForm] string specsJson, IFormFile? image)
         {
             try
             {
@@ -471,7 +471,9 @@ namespace SmartTab.UI.Controllers
                     product.ImageUrl = "/uploads/" + uniqueFileName;
                 }
 
-                product.Specifications.Clear();
+                // Безпечне видалення старих специфікацій
+                _context.RemoveRange(product.Specifications);
+
                 if (!string.IsNullOrWhiteSpace(specsJson))
                 {
                     var specsDict = JsonSerializer.Deserialize<Dictionary<string, string>>(specsJson);
@@ -485,6 +487,25 @@ namespace SmartTab.UI.Controllers
                             }
                         }
                     }
+                }
+
+                // Якщо адмін вписав нові серійники при оновленні товару
+                if (initialQuantity > 0)
+                {
+                    var inventoryItems = new List<InventoryItem>();
+                    for (int i = 0; i < initialQuantity; i++)
+                    {
+                        inventoryItems.Add(new InventoryItem
+                        {
+                            ProductId = product.Id,
+                            SerialNumber = $"SN-{product.Name.Replace(" ", "").ToUpper()}-{Guid.NewGuid().ToString().Substring(0, 6)}",
+                            IsSold = false
+                        });
+                    }
+                    _context.InventoryItems.AddRange(inventoryItems);
+
+                    // Збільшуємо наявну кількість товару на складі
+                    product.StockCount += initialQuantity;
                 }
 
                 await _context.SaveChangesAsync();

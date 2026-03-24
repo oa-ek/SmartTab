@@ -188,15 +188,32 @@
     </div>
 
     <script>
-        const categoryMapping = {
-            '1': { label: 'Готовий ПК', key: 'pc' },
-            '2': { label: 'Процесор', key: 'cpu' },
-            '3': { label: 'Відеокарта', key: 'gpu' },
-            '4': { label: 'Материнська плата', key: 'motherboard' },
-            '5': { label: 'ОЗП', key: 'ram' },
-            '6': { label: 'SSD', key: 'ssd' },
-            '7': { label: 'HDD', key: 'hdd' },
-            '8': { label: 'Блок живлення', key: 'psu' }
+        const categoryKeyByName = {
+            'Готовий ПК': 'pc',
+            'Готові ПК': 'pc',
+            'Процесор': 'cpu',
+            'Процесори': 'cpu',
+            'Процесор (CPU)': 'cpu',
+            'Відеокарта': 'gpu',
+            'Відеокарти': 'gpu',
+            'Відеокарта (GPU)': 'gpu',
+            'Відеокарти (GPU)': 'gpu',
+            'Материнська плата': 'motherboard',
+            'Материнські плати': 'motherboard',
+            'Материнська плата (Motherboard)': 'motherboard',
+            'ОЗП': 'ram',
+            'Оперативна пам\'ять': 'ram',
+            'Оперативна пам\'ять (RAM)': 'ram',
+            'SSD': 'ssd',
+            'Накопичувач (SSD)': 'ssd',
+            'Накопичувачі (SSD)': 'ssd',
+            'Накопичувачі (SSD/HDD)': 'ssd', 
+            'HDD': 'hdd',
+            'Накопичувач (HDD)': 'hdd',
+            'Накопичувачі (HDD)': 'hdd',
+            'Блок живлення': 'psu',
+            'Блоки живлення': 'psu',
+            'Блок живлення (PSU)': 'psu'
         };
 
         const specsSchema = {
@@ -264,9 +281,9 @@
             const productTypeSelect = document.getElementById('productType');
             
             if (catId) {
-                const catInfo = categoryMapping[catId];
                 const selectedCat = allCategories.find(c => c.id == catId);
-                const isPc = (catInfo && catInfo.key === 'pc') || (selectedCat && selectedCat.name.toLowerCase().includes('готовий пк'));
+                const schemaKey = selectedCat ? categoryKeyByName[selectedCat.name.trim()] : null;
+                const isPc = (schemaKey === 'pc') || (selectedCat && selectedCat.name.toLowerCase().includes('готовий пк'));
                 
                 productTypeSelect.value = isPc ? '1' : '0';
                 productTypeSelect.setAttribute('disabled', 'true');
@@ -323,22 +340,47 @@
                 return;
             }
 
-            const catInfo = categoryMapping[catId];
-            if (!catInfo || !specsSchema[catInfo.key]) {
-                section.classList.add('hidden');
-                grid.innerHTML = '';
-                return;
-            }
+            const category = allCategories.find(c => c.id == catId);
+            if (!category) return;
 
-            title.innerText = `Характеристики для ${catInfo.label}:`;
+            title.innerText = `Характеристики для ${category.name}:`;
             
-            let html = '';
-            specsSchema[catInfo.key].forEach(field => {
-                html += `<input type="text" class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-st-purple" id="spec_${field.id}" placeholder="${field.label}">`;
-            });
+            const schemaKey = categoryKeyByName[category.name.trim()];
             
-            grid.innerHTML = html;
+            if (schemaKey && specsSchema[schemaKey]) {
+                let html = '';
+                specsSchema[schemaKey].forEach(field => {
+                    html += `<input type="text" class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-st-purple custom-spec-input" data-key="${field.label}" placeholder="${field.label}">`;
+                });
+                grid.innerHTML = html;
+            } 
+            else {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-yellow-50 p-3 rounded text-sm text-yellow-700 mb-2">
+                        Це нова категорія. Ви можете додати характеристики вручну.
+                    </div>
+                    <div id="customFieldsContainer" class="col-span-full space-y-2"></div>
+                    <button type="button" onclick="addCustomField()" class="col-span-full text-st-purple text-sm font-medium hover:underline text-left">
+                        + Додати характеристику
+                    </button>
+                `;
+            }
+            
             section.classList.remove('hidden');
+        }
+
+        function addCustomField(key = '', val = '') {
+            const container = document.getElementById('customFieldsContainer');
+            if (!container) return;
+            const uniqueId = Date.now() + Math.random().toString(36).substr(2, 9);
+            const html = `
+                <div class="flex gap-2" id="custom_field_${uniqueId}">
+                    <input type="text" placeholder="Назва (напр. Вага)" value="${key}" class="border border-gray-300 rounded p-2 text-sm w-1/3 outline-none focus:border-st-purple custom-key">
+                    <input type="text" placeholder="Значення (напр. 2 кг)" value="${val}" class="border border-gray-300 rounded p-2 text-sm w-2/3 outline-none focus:border-st-purple custom-val">
+                    <button type="button" onclick="document.getElementById('custom_field_${uniqueId}').remove()" class="text-red-500 hover:text-red-700 px-2"><i class="fas fa-times"></i></button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
         }
 
         function loadData() {
@@ -388,7 +430,7 @@
                     : `<div class="h-full w-full flex items-center justify-center bg-gray-50"><i class="fas fa-image text-gray-300 text-4xl"></i></div>`;
                 
                 const mfgName = allManufacturers.find(m => m.id == p.manufacturerId)?.name || 'Не вказано';
-                const currentStock = p.stockCount !== undefined && p.stockCount !== null ? p.stockCount : 0;
+                const currentStock = p.stockCount !== undefined && p.stockCount !== null && p.stockCount !== "" ? p.stockCount : 0;
 
                 html += `
                 <div class="border border-gray-200 rounded-lg p-4 flex flex-col hover:shadow-md transition-shadow bg-white relative group">
@@ -446,6 +488,28 @@
             return true;
         }
 
+        function collectSpecs() {
+            let specs = {};
+            
+            document.querySelectorAll('.custom-spec-input').forEach(el => {
+                if (el.value.trim()) {
+                    specs[el.getAttribute('data-key')] = el.value.trim();
+                }
+            });
+
+            const customKeys = document.querySelectorAll('.custom-key');
+            const customVals = document.querySelectorAll('.custom-val');
+            for (let i = 0; i < customKeys.length; i++) {
+                const key = customKeys[i].value.trim();
+                const val = customVals[i].value.trim();
+                if (key && val) {
+                    specs[key] = val;
+                }
+            }
+
+            return specs;
+        }
+
         async function addProduct() {
             if (!validateProductForm()) return;
 
@@ -463,18 +527,9 @@
             formData.append('manufacturerId', mfgId || "0");
             formData.append('name', document.getElementById('name').value.trim());
             formData.append('price', document.getElementById('price').value || "0");
-            formData.append('stockCount', stockVal || "0");
-            formData.append('initialQuantity', initVal || "0");
-
-            let specs = {};
-            const catInfo = categoryMapping[catId];
-            if (catInfo && specsSchema[catInfo.key]) {
-                specsSchema[catInfo.key].forEach(field => {
-                    const el = document.getElementById(`spec_${field.id}`);
-                    if (el && el.value.trim()) specs[field.label] = el.value.trim();
-                });
-            }
-            formData.append('specsJson', JSON.stringify(specs));
+            formData.append('stockCount', stockVal !== '' ? stockVal : 0);
+            formData.append('initialQuantity', initVal !== '' ? initVal : 0);
+            formData.append('specsJson', JSON.stringify(collectSpecs()));
 
             const img = document.getElementById('imageInput').files[0];
             if (img) formData.append('image', img);
@@ -506,18 +561,9 @@
             formData.append('manufacturerId', mfgId || "0");
             formData.append('name', document.getElementById('name').value.trim());
             formData.append('price', document.getElementById('price').value || "0");
-            formData.append('stockCount', stockVal || "0");
-            formData.append('initialQuantity', initVal || "0");
-
-            let specs = {};
-            const catInfo = categoryMapping[catId];
-            if (catInfo && specsSchema[catInfo.key]) {
-                specsSchema[catInfo.key].forEach(field => {
-                    const el = document.getElementById(`spec_${field.id}`);
-                    if (el && el.value.trim()) specs[field.label] = el.value.trim();
-                });
-            }
-            formData.append('specsJson', JSON.stringify(specs));
+            formData.append('stockCount', stockVal !== '' ? stockVal : 0);
+            formData.append('initialQuantity', initVal !== '' ? initVal : 0);
+            formData.append('specsJson', JSON.stringify(collectSpecs()));
 
             const img = document.getElementById('imageInput').files[0];
             if (img) formData.append('image', img);
@@ -580,8 +626,8 @@
                 document.getElementById('uploadPlaceholder').classList.add('hidden');
             }
             
-            const catInfo = categoryMapping[product.categoryId];
-            if (catInfo && specsSchema[catInfo.key] && product.specs) {
+            const category = allCategories.find(c => c.id == product.categoryId);
+            if (category && product.specs) {
                 let parsedSpecs = {};
                 try {
                     const parsed = typeof product.specs === 'string' ? JSON.parse(product.specs) : product.specs;
@@ -592,12 +638,19 @@
                     }
                 } catch(e) {}
 
-                specsSchema[catInfo.key].forEach(field => {
-                    const el = document.getElementById(`spec_${field.id}`);
-                    if (el) {
-                        el.value = parsedSpecs[field.label] || '';
+                const schemaKey = categoryKeyByName[category.name.trim()];
+                if (schemaKey && specsSchema[schemaKey]) {
+                    document.querySelectorAll('.custom-spec-input').forEach(el => {
+                        const key = el.getAttribute('data-key');
+                        if (parsedSpecs[key]) {
+                            el.value = parsedSpecs[key];
+                        }
+                    });
+                } else {
+                    for (const [key, value] of Object.entries(parsedSpecs)) {
+                        addCustomField(key, value);
                     }
-                });
+                }
             }
 
             document.getElementById('form-title').innerText = 'Редагувати товар';
