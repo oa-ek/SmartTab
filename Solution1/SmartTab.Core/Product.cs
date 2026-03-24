@@ -1,10 +1,14 @@
 namespace SmartTab.Core;
+using System.ComponentModel.DataAnnotations;
 
 public class Product
 {
     public int Id { get; set; }
+    [Required]
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
+    [Required]
+    [Range(0.01, 1000000, ErrorMessage = "Ціна повинна бути більшою за 0")]
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
 
