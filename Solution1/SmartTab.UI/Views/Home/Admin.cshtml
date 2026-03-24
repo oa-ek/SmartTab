@@ -30,7 +30,7 @@
                 align-items: center;
                 justify-content: space-between;
             }
-
+            
             .header-left {
                 display: flex;
                 align-items: center;
@@ -449,6 +449,7 @@
                     method: 'DELETE'
                 }).then(() => loadProducts());
             }
+
 
             function update(id, value, field) {
                 fetch('/api/products/' + id, {
