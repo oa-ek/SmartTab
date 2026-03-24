@@ -36,6 +36,11 @@
             background-color: var(--st-purple);
             border-color: var(--st-purple);
         }
+        .checkbox-custom:disabled {
+            background-color: #e5e7eb;
+            border-color: #d1d5db;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -85,7 +90,7 @@
 
                         <div class="flex-1 flex flex-col gap-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <select id="productType" class="border border-gray-300 rounded p-2.5 text-sm w-full bg-white text-gray-700 transition-colors">
+                                <select id="productType" class="border border-gray-300 rounded p-2.5 text-sm w-full bg-white text-gray-700" onchange="handleProductTypeChange()">
                                     <option value="0">Компонент (Component)</option>
                                     <option value="1">Готовий ПК</option>
                                 </select>
@@ -116,7 +121,7 @@
 
                     <div id="dynamicSection" class="hidden mt-8 pt-6 border-t border-dashed border-gray-200">
                         <h3 id="dynamicTitle" class="font-bold text-gray-900 mb-4 text-sm">Характеристики:</h3>
-                        <div id="dynamicGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                        <div id="dynamicGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
                         </div>
                     </div>
 
@@ -197,7 +202,6 @@
             'Відеокарта': 'gpu',
             'Відеокарти': 'gpu',
             'Відеокарта (GPU)': 'gpu',
-            'Відеокарти (GPU)': 'gpu',
             'Материнська плата': 'motherboard',
             'Материнські плати': 'motherboard',
             'Материнська плата (Motherboard)': 'motherboard',
@@ -213,7 +217,12 @@
             'Накопичувачі (HDD)': 'hdd',
             'Блок живлення': 'psu',
             'Блоки живлення': 'psu',
-            'Блок живлення (PSU)': 'psu'
+            'Блок живлення (PSU)': 'psu',
+            // ДОДАНО НОВІ КЛЮЧІ ДЛЯ ОХОЛОДЖЕННЯ ТА КОРПУСУ
+            'Охолодження': 'cooler',
+            'Кулери': 'cooler',
+            'Корпус': 'case',
+            'Корпуси': 'case'
         };
 
         const specsSchema = {
@@ -234,10 +243,10 @@
             ],
             motherboard: [
                 { id: 'socket', label: 'Сокет' }, { id: 'chipset', label: 'Чипсет' },
-                { id: 'formFactor', label: 'Форм-фактор' }
+                { id: 'formFactor', label: 'Форм-фактор' }, { id: 'memoryType', label: "Тип пам'яті" }
             ],
             ram: [
-                { id: 'capacity', label: "Об'єм (ГБ)" }, { id: 'type', label: "Тип (DDR4/DDR5)" },
+                { id: 'capacity', label: "Об'єм (ГБ)" }, { id: 'type', label: "Тип пам'яті" },
                 { id: 'frequency', label: 'Частота (МГц)' }, { id: 'latency', label: 'Таймінги (CL)' }
             ],
             ssd: [
@@ -251,6 +260,13 @@
             psu: [
                 { id: 'power', label: 'Потужність (Вт)' }, { id: 'certification', label: 'Сертифікат (80+)' },
                 { id: 'formFactor', label: 'Форм-фактор (ATX/SFX)' }
+            ],
+            // ДОДАНО СХЕМИ ДЛЯ НОВИХ КАТЕГОРІЙ
+            cooler: [
+                { id: 'type', label: 'Тип (Повітряне/Водяне)' }, { id: 'socket', label: 'Підтримувані сокети' }
+            ],
+            case: [
+                { id: 'formFactor', label: 'Форм-фактор (ATX/Mini-ITX)' }
             ]
         };
 
@@ -272,35 +288,127 @@
             }
         }
 
+        // ХЕЛПЕР: функція для зручного читання JSON характеристик без дублювання коду
+        function parseSpecs(opt) {
+            if (!opt || !opt.dataset || !opt.dataset.specs) return {};
+            try {
+                let s = JSON.parse(opt.dataset.specs);
+                if (Array.isArray(s)) {
+                    let temp = {};
+                    s.forEach(c => temp[c.name || c.label] = c.value);
+                    return temp;
+                }
+                return s;
+            } catch(e) {
+                return {};
+            }
+        }
+
+        function getSelectedId(name) {
+            const el = document.querySelector(`input[name="${name}"]:checked`);
+            return el ? el.value : '';
+        }
+
+        function handleProductTypeChange() {
+            const type = document.getElementById('productType').value;
+            const pcCategory = allCategories.find(c => categoryKeyByName[c.name] === 'pc');
+            const smartTabMfg = allManufacturers.find(m => m.name.toLowerCase() === 'smarttab');
+            
+            const checkboxes = document.querySelectorAll('input[name="productCategory"]');
+            const mfgCheckboxes = document.querySelectorAll('input[name="productManufacturer"]');
+            
+            if (type === '1') {
+                if (pcCategory) {
+                    checkboxes.forEach(cb => {
+                        if (cb.value == pcCategory.id) {
+                            cb.checked = true;
+                            cb.disabled = false;
+                            renderDynamicFields(cb.value);
+                        } else {
+                            cb.checked = false;
+                            cb.disabled = true; 
+                        }
+                    });
+                }
+                
+                mfgCheckboxes.forEach(cb => {
+                    if (smartTabMfg && cb.value == smartTabMfg.id) {
+                        cb.checked = true;
+                        cb.disabled = true;
+                    } else {
+                        cb.checked = false;
+                        cb.disabled = true;
+                    }
+                });
+
+                if (smartTabMfg) {
+                    document.getElementById('manufacturerNameInput').value = smartTabMfg.name;
+                    document.getElementById('manufacturerDescInput').value = smartTabMfg.description || '';
+                } else {
+                    document.getElementById('manufacturerNameInput').value = '';
+                    document.getElementById('manufacturerDescInput').value = '';
+                }
+            } else {
+                let wasPcChecked = false;
+                checkboxes.forEach(cb => {
+                    cb.disabled = false; 
+                    if (pcCategory && cb.value == pcCategory.id && cb.checked) {
+                        cb.checked = false;
+                        wasPcChecked = true;
+                    }
+                });
+                
+                mfgCheckboxes.forEach(cb => {
+                    if (smartTabMfg && cb.value == smartTabMfg.id) {
+                        cb.checked = false;
+                        cb.disabled = true; 
+                    } else {
+                        cb.disabled = false;
+                    }
+                });
+
+                if (document.getElementById('manufacturerNameInput').value.toLowerCase() === 'smarttab') {
+                    document.getElementById('manufacturerNameInput').value = '';
+                    document.getElementById('manufacturerDescInput').value = '';
+                }
+
+                if (wasPcChecked) renderDynamicFields('');
+            }
+        }
+
         function handleCategoryCheckbox(checkbox) {
             document.querySelectorAll('input[name="productCategory"]').forEach(cb => {
                 if (cb !== checkbox) cb.checked = false;
             });
-            
-            const catId = checkbox.checked ? checkbox.value : '';
-            const productTypeSelect = document.getElementById('productType');
-            
-            if (catId) {
-                const selectedCat = allCategories.find(c => c.id == catId);
-                const schemaKey = selectedCat ? categoryKeyByName[selectedCat.name.trim()] : null;
-                const isPc = (schemaKey === 'pc') || (selectedCat && selectedCat.name.toLowerCase().includes('готовий пк'));
-                
-                productTypeSelect.value = isPc ? '1' : '0';
-                productTypeSelect.setAttribute('disabled', 'true');
-                productTypeSelect.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
-            } else {
-                productTypeSelect.value = '0';
-                productTypeSelect.removeAttribute('disabled');
-                productTypeSelect.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
-            }
 
-            renderDynamicFields(catId);
+            const pcCategory = allCategories.find(c => categoryKeyByName[c.name] === 'pc');
+            const typeSelect = document.getElementById('productType');
+            
+            if (checkbox.checked && pcCategory && checkbox.value == pcCategory.id) {
+                typeSelect.value = '1';
+                handleProductTypeChange(); 
+                return;
+            } else {
+                typeSelect.value = '0';
+                document.querySelectorAll('input[name="productCategory"]').forEach(cb => cb.disabled = false);
+                document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => cb.disabled = false);
+            }
+            
+            renderDynamicFields(checkbox.checked ? checkbox.value : '');
         }
 
         function handleManufacturerCheckbox(checkbox) {
             document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => {
                 if (cb !== checkbox) cb.checked = false;
             });
+            const selectedManufacturerId = getSelectedId('productManufacturer');
+            if (selectedManufacturerId) {
+                const manufacturer = allManufacturers.find(m => m.id == selectedManufacturerId);
+                if (manufacturer) {
+                    document.getElementById('manufacturerNameInput').value = manufacturer.name;
+                    document.getElementById('manufacturerDescInput').value = manufacturer.description;
+                }
+            }
         }
 
         function renderCheckboxes() {
@@ -309,9 +417,9 @@
                 catContainer.innerHTML = '<div class="text-gray-400 text-xs italic">Пусто</div>';
             } else {
                 catContainer.innerHTML = allCategories.map(cat => `
-                    <label class="flex items-center space-x-2 cursor-pointer group py-0.5">
+                    <label class="flex items-center space-x-2 cursor-pointer group">
                         <input type="checkbox" name="productCategory" value="${cat.id}" id="cat-cb-${cat.id}" class="checkbox-custom rounded border-gray-300 w-4 h-4 cursor-pointer" onchange="handleCategoryCheckbox(this)">
-                        <span class="text-gray-700 group-hover:text-st-purple transition-colors text-sm">${cat.name}</span>
+                        <span class="text-gray-700 group-hover:text-st-purple transition-colors">${cat.name}</span>
                     </label>
                 `).join('');
             }
@@ -321,12 +429,14 @@
                 mfgContainer.innerHTML = '<div class="text-gray-400 text-xs italic">Пусто</div>';
             } else {
                 mfgContainer.innerHTML = allManufacturers.map(mfg => `
-                    <label class="flex items-center space-x-2 cursor-pointer group py-0.5">
+                    <label class="flex items-center space-x-2 cursor-pointer group">
                         <input type="checkbox" name="productManufacturer" value="${mfg.id}" id="mfg-cb-${mfg.id}" class="checkbox-custom rounded border-gray-300 w-4 h-4 cursor-pointer" onchange="handleManufacturerCheckbox(this)">
-                        <span class="text-gray-700 group-hover:text-st-purple transition-colors text-sm">${mfg.name}</span>
+                        <span class="text-gray-700 group-hover:text-st-purple transition-colors">${mfg.name}</span>
                     </label>
                 `).join('');
             }
+
+            handleProductTypeChange();
         }
 
         function renderDynamicFields(catId) {
@@ -343,14 +453,69 @@
             const category = allCategories.find(c => c.id == catId);
             if (!category) return;
 
-            title.innerText = `Характеристики для ${category.name}:`;
+            title.innerText = `Характеристики для: ${category.name}`;
+            const schemaKey = categoryKeyByName[category.name];
             
-            const schemaKey = categoryKeyByName[category.name.trim()];
-            
-            if (schemaKey && specsSchema[schemaKey]) {
+            if (schemaKey === 'pc') {
+                let html = '';
+                
+                // ДОДАНО ПОШУК ДЛЯ ОХОЛОДЖЕННЯ ТА КОРПУСУ
+                const catMap = { 
+                    'cpu': 'процесор', 
+                    'gpu': 'відеокарт', 
+                    'motherboard': 'материнськ', 
+                    'ram': 'оперативна пам', 
+                    'storage': 'накопичувач', 
+                    'psu': 'блок',
+                    'cooler': 'охолодження',
+                    'case': 'корпус'
+                };
+
+                specsSchema.pc.forEach(field => {
+                    const searchWord = catMap[field.id];
+                    let optionsHtml = `<option value="">Оберіть ${field.label}...</option>`;
+                    
+                    if (searchWord) {
+                        const targetCat = allCategories.find(c => c.name.toLowerCase().includes(searchWord));
+                        if (targetCat) {
+                            const availableComponents = allProducts.filter(p => p.categoryId == targetCat.id);
+                            availableComponents.forEach(p => {
+                                let specsStr = '{}';
+                                if (p.specs) {
+                                    specsStr = typeof p.specs === 'string' ? p.specs : JSON.stringify(p.specs);
+                                    specsStr = specsStr.replace(/"/g, '&quot;');
+                                }
+                                optionsHtml += `<option value="${p.id}" data-specs="${specsStr}">${p.name} (${p.price} ₴)</option>`;
+                            });
+                        }
+                        
+                        html += `
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase">${field.label}</label>
+                            <select class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-st-purple bg-white" 
+                                    id="spec_${field.id}" 
+                                    onchange="checkPcCompatibility()">
+                                ${optionsHtml}
+                            </select>
+                        </div>`;
+                    } else {
+                        html += `
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase">${field.label}</label>
+                            <input type="text" class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-st-purple" id="spec_${field.id}" placeholder="Введіть вручну...">
+                        </div>`;
+                    }
+                });
+                grid.innerHTML = html;
+            } 
+            else if (schemaKey && specsSchema[schemaKey]) {
                 let html = '';
                 specsSchema[schemaKey].forEach(field => {
-                    html += `<input type="text" class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-st-purple custom-spec-input" data-key="${field.label}" placeholder="${field.label}">`;
+                    html += `
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase">${field.label}</label>
+                        <input type="text" class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-st-purple" id="spec_${field.id}" data-key="${field.label}" placeholder="${field.label}">
+                    </div>`;
                 });
                 grid.innerHTML = html;
             } 
@@ -369,14 +534,144 @@
             section.classList.remove('hidden');
         }
 
-        function addCustomField(key = '', val = '') {
+        function checkPcCompatibility() {
+            const moboSelect = document.getElementById('spec_motherboard');
+            const cpuSelect = document.getElementById('spec_cpu');
+            const ramSelect = document.getElementById('spec_ram');
+            const gpuSelect = document.getElementById('spec_gpu');
+            const psuSelect = document.getElementById('spec_psu');
+
+            // --- 1. ПЕРЕВІРКА СОКЕТУ ТА ОЗП ---
+            let requiredSocket = null;
+            let requiredRamType = null;
+
+            if (moboSelect && moboSelect.value !== "") {
+                const moboSpecs = parseSpecs(moboSelect.options[moboSelect.selectedIndex]);
+                requiredSocket = moboSpecs['Сокет'] ? moboSpecs['Сокет'].toLowerCase().trim() : null;
+                requiredRamType = moboSpecs["Тип пам'яті"] ? moboSpecs["Тип пам'яті"].toLowerCase().trim() : null;
+            }
+
+            // Перевірка Процесора
+            if (cpuSelect) {
+                Array.from(cpuSelect.options).forEach(opt => {
+                    if (opt.value === "") return;
+
+                    if (!requiredSocket) {
+                        opt.disabled = false;
+                        opt.text = opt.text.replace(' ❌ Не підходить сокет', '');
+                        return;
+                    }
+
+                    const cpuSpecs = parseSpecs(opt);
+                    const cpuSocket = cpuSpecs['Сокет'] ? cpuSpecs['Сокет'].toLowerCase().trim() : null;
+
+                    if (cpuSocket && cpuSocket !== requiredSocket) {
+                        opt.disabled = true;
+                        if (!opt.text.includes('❌')) opt.text += ' ❌ Не підходить сокет';
+                        if (cpuSelect.value === opt.value) cpuSelect.value = "";
+                    } else {
+                        opt.disabled = false;
+                        opt.text = opt.text.replace(' ❌ Не підходить сокет', '');
+                    }
+                });
+            }
+
+            // Перевірка Оперативки
+            if (ramSelect) {
+                Array.from(ramSelect.options).forEach(opt => {
+                    if (opt.value === "") return;
+                    
+                    if (!requiredRamType) {
+                        opt.disabled = false;
+                        opt.text = opt.text.replace(' ❌ Не підходить тип', '');
+                        return;
+                    }
+
+                    const ramSpecs = parseSpecs(opt);
+                    const ramType = ramSpecs["Тип пам'яті"] ? ramSpecs["Тип пам'яті"].toLowerCase().trim() : null;
+
+                    if (ramType && !ramType.includes(requiredRamType) && !requiredRamType.includes(ramType)) {
+                        opt.disabled = true;
+                        if (!opt.text.includes('❌')) opt.text += ' ❌ Не підходить тип';
+                        if (ramSelect.value === opt.value) ramSelect.value = "";
+                    } else {
+                        opt.disabled = false;
+                        opt.text = opt.text.replace(' ❌ Не підходить тип', '');
+                    }
+                });
+            }
+
+            // --- 2. ПЕРЕВІРКА GPU vs PSU ---
+            let selectedGpuTdp = 0;
+            let selectedPsuPower = 0;
+
+            if (gpuSelect && gpuSelect.value !== "") {
+                const gpuSpecs = parseSpecs(gpuSelect.options[gpuSelect.selectedIndex]);
+                selectedGpuTdp = parseInt(gpuSpecs['Енергоспоживання (Вт)']) || 0;
+            }
+
+            if (psuSelect && psuSelect.value !== "") {
+                const psuSpecs = parseSpecs(psuSelect.options[psuSelect.selectedIndex]);
+                selectedPsuPower = parseInt(psuSpecs['Потужність (Вт)']) || 0;
+            }
+
+            // Якщо вибрано GPU - блокуємо заслабкі блоки живлення
+            if (psuSelect) {
+                Array.from(psuSelect.options).forEach(opt => {
+                    if (opt.value === "") return;
+                    
+                    if (selectedGpuTdp > 0) {
+                        const psuSpecs = parseSpecs(opt);
+                        // Запобіжник: якщо у БЖ не вказана потужність, ставимо 9999 щоб не блокувати його помилково
+                        const psuPower = parseInt(psuSpecs['Потужність (Вт)']) || 9999; 
+                        
+                        if (selectedGpuTdp > psuPower) {
+                            opt.disabled = true;
+                            if (!opt.text.includes('❌ Заслабкий')) opt.text += ' ❌ Заслабкий для відеокарти';
+                            if (psuSelect.value === opt.value) psuSelect.value = "";
+                        } else {
+                            opt.disabled = false;
+                            opt.text = opt.text.replace(' ❌ Заслабкий для відеокарти', '');
+                        }
+                    } else {
+                        opt.disabled = false;
+                        opt.text = opt.text.replace(' ❌ Заслабкий для відеокарти', '');
+                    }
+                });
+            }
+
+            // Якщо вибрано PSU - блокуємо занадто потужні відеокарти
+            if (gpuSelect) {
+                Array.from(gpuSelect.options).forEach(opt => {
+                    if (opt.value === "") return;
+                    
+                    if (selectedPsuPower > 0) {
+                        const gpuSpecs = parseSpecs(opt);
+                        const gpuTdp = parseInt(gpuSpecs['Енергоспоживання (Вт)']) || 0;
+                        
+                        if (gpuTdp > selectedPsuPower) {
+                            opt.disabled = true;
+                            if (!opt.text.includes('❌ Не вистачає')) opt.text += ' ❌ Не вистачає БЖ';
+                            if (gpuSelect.value === opt.value) gpuSelect.value = "";
+                        } else {
+                            opt.disabled = false;
+                            opt.text = opt.text.replace(' ❌ Не вистачає БЖ', '');
+                        }
+                    } else {
+                        opt.disabled = false;
+                        opt.text = opt.text.replace(' ❌ Не вистачає БЖ', '');
+                    }
+                });
+            }
+        }
+
+        function addCustomField() {
             const container = document.getElementById('customFieldsContainer');
-            if (!container) return;
-            const uniqueId = Date.now() + Math.random().toString(36).substr(2, 9);
+            const uniqueId = Date.now();
             const html = `
                 <div class="flex gap-2" id="custom_field_${uniqueId}">
-                    <input type="text" placeholder="Назва (напр. Вага)" value="${key}" class="border border-gray-300 rounded p-2 text-sm w-1/3 outline-none focus:border-st-purple custom-key">
-                    <input type="text" placeholder="Значення (напр. 2 кг)" value="${val}" class="border border-gray-300 rounded p-2 text-sm w-2/3 outline-none focus:border-st-purple custom-val">
+                    <input type="text" placeholder="Назва (напр. Вага)" class="border border-gray-300 rounded p-2 text-sm w-1/3 outline-none focus:border-st-purple custom-key">
+                    <input type="text" placeholder="Значення (напр. 2 кг)" class="border border-gray-300 rounded p-2 text-sm w-2/3 outline-none focus:border-st-purple custom-val">
                     <button type="button" onclick="document.getElementById('custom_field_${uniqueId}').remove()" class="text-red-500 hover:text-red-700 px-2"><i class="fas fa-times"></i></button>
                 </div>
             `;
@@ -453,7 +748,7 @@
                         ${p.name}
                     </div>
 
-                    <div class="text-[13px] text-gray-600 mb-4 leading-relaxed">
+                    <div class="text-[13px] text-gray-600 mb-4 leading-relaxed line-clamp-2">
                         ${specsText}
                     </div>
 
@@ -472,11 +767,6 @@
             renderProducts(filtered);
         }
 
-        function getSelectedId(name) {
-            const el = document.querySelector(`input[name="${name}"]:checked`);
-            return el ? el.value : '';
-        }
-
         function validateProductForm() {
             const name = document.getElementById('name').value.trim();
             const price = parseFloat(document.getElementById('price').value);
@@ -488,28 +778,6 @@
             return true;
         }
 
-        function collectSpecs() {
-            let specs = {};
-            
-            document.querySelectorAll('.custom-spec-input').forEach(el => {
-                if (el.value.trim()) {
-                    specs[el.getAttribute('data-key')] = el.value.trim();
-                }
-            });
-
-            const customKeys = document.querySelectorAll('.custom-key');
-            const customVals = document.querySelectorAll('.custom-val');
-            for (let i = 0; i < customKeys.length; i++) {
-                const key = customKeys[i].value.trim();
-                const val = customVals[i].value.trim();
-                if (key && val) {
-                    specs[key] = val;
-                }
-            }
-
-            return specs;
-        }
-
         async function addProduct() {
             if (!validateProductForm()) return;
 
@@ -519,17 +787,31 @@
             const catId = getSelectedId('productCategory');
             const mfgId = getSelectedId('productManufacturer');
             const stockVal = document.getElementById('stockCount').value;
-            const initVal = document.getElementById('initialQuantity').value;
+            const initialVal = document.getElementById('initialQuantity').value;
             
             const formData = new FormData();
-            formData.append('productType', document.getElementById('productType').value || "0");
-            formData.append('categoryId', catId || "0");
-            formData.append('manufacturerId', mfgId || "0");
+            formData.append('productType', document.getElementById('productType').value);
+            formData.append('categoryId', catId || '');
+            formData.append('manufacturerId', mfgId || '');
             formData.append('name', document.getElementById('name').value.trim());
-            formData.append('price', document.getElementById('price').value || "0");
+            formData.append('price', document.getElementById('price').value || 0);
             formData.append('stockCount', stockVal !== '' ? stockVal : 0);
-            formData.append('initialQuantity', initVal !== '' ? initVal : 0);
-            formData.append('specsJson', JSON.stringify(collectSpecs()));
+            formData.append('initialQuantity', initialVal !== '' ? initialVal : 0);
+
+            let specs = {};
+            const catInfo = allCategories.find(c => c.id == catId);
+            if (catInfo) {
+                const schemaKey = categoryKeyByName[catInfo.name];
+                if (schemaKey && specsSchema[schemaKey]) {
+                    specsSchema[schemaKey].forEach(field => {
+                        const el = document.getElementById(`spec_${field.id}`);
+                        if (el && el.value.trim()) {
+                            specs[field.label] = el.value.trim();
+                        }
+                    });
+                }
+            }
+            formData.append('specsJson', JSON.stringify(specs));
 
             const img = document.getElementById('imageInput').files[0];
             if (img) formData.append('image', img);
@@ -552,18 +834,32 @@
             const catId = getSelectedId('productCategory');
             const mfgId = getSelectedId('productManufacturer');
             const stockVal = document.getElementById('stockCount').value;
-            const initVal = document.getElementById('initialQuantity').value;
+            const initialVal = document.getElementById('initialQuantity').value;
             
             const formData = new FormData();
             formData.append('id', id);
-            formData.append('productType', document.getElementById('productType').value || "0");
-            formData.append('categoryId', catId || "0");
-            formData.append('manufacturerId', mfgId || "0");
+            formData.append('productType', document.getElementById('productType').value);
+            formData.append('categoryId', catId || '');
+            formData.append('manufacturerId', mfgId || '');
             formData.append('name', document.getElementById('name').value.trim());
-            formData.append('price', document.getElementById('price').value || "0");
-            formData.append('stockCount', stockVal !== '' ? stockVal : 0);
-            formData.append('initialQuantity', initVal !== '' ? initVal : 0);
-            formData.append('specsJson', JSON.stringify(collectSpecs()));
+            formData.append('price', document.getElementById('price').value);
+            formData.append('stockCount', stockVal);
+            formData.append('initialQuantity', initialVal);
+
+            let specs = {};
+            const catInfo = allCategories.find(c => c.id == catId);
+            if (catInfo) {
+                const schemaKey = categoryKeyByName[catInfo.name];
+                if (schemaKey && specsSchema[schemaKey]) {
+                    specsSchema[schemaKey].forEach(field => {
+                        const el = document.getElementById(`spec_${field.id}`);
+                        if (el && el.value.trim()) {
+                            specs[field.label] = el.value.trim();
+                        }
+                    });
+                }
+            }
+            formData.append('specsJson', JSON.stringify(specs));
 
             const img = document.getElementById('imageInput').files[0];
             if (img) formData.append('image', img);
@@ -573,7 +869,7 @@
                 if (response.ok) { resetForm(); loadData(); } 
                 else { alert('Помилка: ' + await response.text()); }
             } catch (err) { alert('Сталася мережева помилка'); }
-            finally { btn.disabled = false; btn.innerText = 'Додати до каталогу'; }
+            finally { btn.disabled = false; btn.innerText = 'Зберегти зміни'; }
         }
 
         function deleteProduct(id) {
@@ -591,17 +887,14 @@
             resetForm(); 
 
             document.getElementById('productId').value = product.id;
+            document.getElementById('productType').value = product.productType || 0;
+            
+            handleProductTypeChange();
+
             document.getElementById('name').value = product.name || '';
             document.getElementById('price').value = product.price || '';
-            document.getElementById('stockCount').value = product.stockCount !== undefined && product.stockCount !== null ? product.stockCount : 0;
-            document.getElementById('initialQuantity').value = 0;
-            
-            const productTypeSelect = document.getElementById('productType');
-            if (product.productType !== undefined) {
-                productTypeSelect.value = product.productType;
-                productTypeSelect.setAttribute('disabled', 'true');
-                productTypeSelect.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
-            }
+            document.getElementById('stockCount').value = product.stockCount !== undefined && product.stockCount !== null ? product.stockCount : '';
+            document.getElementById('initialQuantity').value = product.initialQuantity !== undefined && product.initialQuantity !== null ? product.initialQuantity : '';
             
             if (product.categoryId) {
                 document.querySelectorAll('input[name="productCategory"]').forEach(cb => {
@@ -626,29 +919,21 @@
                 document.getElementById('uploadPlaceholder').classList.add('hidden');
             }
             
-            const category = allCategories.find(c => c.id == product.categoryId);
-            if (category && product.specs) {
-                let parsedSpecs = {};
-                try {
-                    const parsed = typeof product.specs === 'string' ? JSON.parse(product.specs) : product.specs;
-                    if (Array.isArray(parsed)) {
-                        parsed.forEach(s => parsedSpecs[s.name] = s.value);
-                    } else if (typeof parsed === 'object') {
-                        parsedSpecs = parsed;
-                    }
-                } catch(e) {}
-
-                const schemaKey = categoryKeyByName[category.name.trim()];
-                if (schemaKey && specsSchema[schemaKey]) {
-                    document.querySelectorAll('.custom-spec-input').forEach(el => {
-                        const key = el.getAttribute('data-key');
-                        if (parsedSpecs[key]) {
-                            el.value = parsedSpecs[key];
+            const catInfo = allCategories.find(c => c.id == product.categoryId);
+            if (catInfo) {
+                const schemaKey = categoryKeyByName[catInfo.name];
+                if (schemaKey && specsSchema[schemaKey] && product.specs) {
+                    const pSpecs = parseSpecs({ dataset: { specs: typeof product.specs === 'string' ? product.specs : JSON.stringify(product.specs) } });
+                    
+                    specsSchema[schemaKey].forEach(field => {
+                        const el = document.getElementById(`spec_${field.id}`);
+                        if (el) {
+                            el.value = pSpecs[field.label] || '';
                         }
                     });
-                } else {
-                    for (const [key, value] of Object.entries(parsedSpecs)) {
-                        addCustomField(key, value);
+                    
+                    if (schemaKey === 'pc') {
+                        checkPcCompatibility();
                     }
                 }
             }
@@ -663,18 +948,20 @@
         function resetForm() {
             document.getElementById('product-form').reset();
             document.getElementById('productId').value = '';
+            document.getElementById('productType').value = '0';
+            
+            handleProductTypeChange();
+
             document.getElementById('imagePreview').classList.add('hidden');
             document.getElementById('uploadPlaceholder').classList.remove('hidden');
             document.getElementById('dynamicSection').classList.add('hidden');
             document.getElementById('dynamicGrid').innerHTML = '';
             
-            const productTypeSelect = document.getElementById('productType');
-            productTypeSelect.removeAttribute('disabled');
-            productTypeSelect.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
-            productTypeSelect.value = '0';
-            
             document.querySelectorAll('input[name="productCategory"]').forEach(cb => cb.checked = false);
             document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => cb.checked = false);
+
+            document.getElementById('manufacturerNameInput').value = '';
+            document.getElementById('manufacturerDescInput').value = '';
 
             document.getElementById('form-title').innerText = 'Додати товар';
             document.getElementById('submitBtn').innerText = 'Додати до каталогу';
