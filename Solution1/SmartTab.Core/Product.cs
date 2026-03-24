@@ -10,8 +10,11 @@ public class Product
 
     public int CategoryId { get; set; }
     public Category Category { get; set; } = null!;
+    public ProductType Type { get; set; } = ProductType.Component;
 
     public ICollection<ProductSpecification> Specifications { get; set; } = new List<ProductSpecification>();
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
+    public ICollection<BuildPart> PcParts { get; set; } = new List<BuildPart>();
+    public ICollection<BuildPart> PartOfPcs { get; set; } = new List<BuildPart>();
 }
