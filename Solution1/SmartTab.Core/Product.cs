@@ -1,5 +1,6 @@
 namespace SmartTab.Core;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class Product
 {
@@ -12,6 +13,11 @@ public class Product
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
     public int StockCount { get; set; } = 0;
+
+    // Цього атрибута немає в базі даних, він існує ТІЛЬКИ для форми в браузері
+    [NotMapped]
+    [Display(Name = "Початкова кількість на складі")]
+    public int InitialQuantity { get; set; } = 0;
 
     public int? ManufacturerId { get; set; }
     public Manufacturer? Manufacturer { get; set; }

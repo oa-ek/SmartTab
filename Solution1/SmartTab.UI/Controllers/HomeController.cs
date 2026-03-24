@@ -42,6 +42,23 @@ namespace SmartTab.UI.Controllers
             return Ok(components);
         }
 
+        [HttpGet("api/products/{id}/inventory")]
+        public async Task<IActionResult> GetProductInventory(int id)
+        {
+            var inventoryItems = await _context.InventoryItems
+                .Where(i => i.ProductId == id)
+                .Select(i => new {
+                    i.Id,
+                    i.SerialNumber,
+                    i.IsSold,
+                    OrderItemId = i.OrderItemId
+                })
+                .OrderByDescending(i => i.Id)
+                .ToListAsync();
+
+            return Ok(inventoryItems);
+        }
+
         [HttpGet("api/products")]
         public async Task<IActionResult> GetProducts()
         {
@@ -66,12 +83,19 @@ namespace SmartTab.UI.Controllers
         }
 
         [HttpPost("api/products")]
-        public async Task<IActionResult> AddProduct([FromForm] string name, [FromForm] decimal price, [FromForm] int categoryId, [FromForm] int productType, [FromForm] int stockCount, [FromForm] string specsJson, IFormFile? image)
+        public async Task<IActionResult> AddProduct([FromForm] string name, [FromForm] decimal price, [FromForm] int categoryId, [FromForm] int productType, [FromForm] int stockCount, [FromForm] int initialQuantity, [FromForm] string specsJson, IFormFile? image)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(name) || price <= 0 || categoryId <= 0)
                     return BadRequest("Невалідні дані товару.");
+
+                // Перевірка на унікальність назви
+                var existingProduct = await _context.Products
+                    .FirstOrDefaultAsync(p => p.Name.ToLower().Trim() == name.ToLower().Trim());
+                
+                if (existingProduct != null)
+                    return BadRequest($"Товар з назвою '{name}' вже існує. Будь ласка, використайте іншу назву.");
 
                 var product = new Product
                 {
@@ -79,7 +103,8 @@ namespace SmartTab.UI.Controllers
                     Price = price,
                     CategoryId = categoryId,
                     Type = (ProductType)productType,
-                    StockCount = stockCount
+                    StockCount = stockCount + initialQuantity, // Додаємо початкову кількість до загальної кількості
+                    InitialQuantity = initialQuantity
                 };
 
                 if (image != null && image.Length > 0)
@@ -112,10 +137,71 @@ namespace SmartTab.UI.Controllers
                     }
                 }
 
+                // 1. Спочатку зберігаємо сам товар (щоб база видала йому Id)
                 _context.Products.Add(product);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Товар успішно додано" });
+                // 2. Якщо адмін вказав початкову кількість більше 0, генеруємо складські запаси
+                if (product.InitialQuantity > 0)
+                {
+                    var inventoryItems = new List<InventoryItem>();
+                    
+                    for (int i = 0; i < product.InitialQuantity; i++)
+                    {
+                        inventoryItems.Add(new InventoryItem
+                        {
+                            ProductId = product.Id, // Прив'язуємо до щойно створеного товару
+                            // Генеруємо випадковий серійник: напр. "SN-RTX4070-B7F9A2"
+                            SerialNumber = $"SN-{product.Name.Replace(" ", "").ToUpper()}-{Guid.NewGuid().ToString().Substring(0, 6)}",
+                            IsSold = false
+                        });
+                    }
+                    
+                    // Зберігаємо всі згенеровані серійники в базу
+                    _context.InventoryItems.AddRange(inventoryItems);
+                    await _context.SaveChangesAsync();
+                }
+
+                return Ok(new { message = $"Товар успішно додано. Згенеровано {product.InitialQuantity} серійних номерів." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+            }
+        }
+
+        [HttpPost("api/products/{id}/add-serials")]
+        public async Task<IActionResult> AddSerialNumbers(int id, [FromForm] int quantity)
+        {
+            try
+            {
+                var product = await _context.Products.FindAsync(id);
+                if (product == null)
+                    return NotFound("Товар не знайдено");
+
+                if (quantity <= 0)
+                    return BadRequest("Невалідна кількість товару.");
+
+                // Оновлюємо загальну кількість
+                product.StockCount += quantity;
+
+                // Генеруємо нові серійні номери
+                var inventoryItems = new List<InventoryItem>();
+                
+                for (int i = 0; i < quantity; i++)
+                {
+                    inventoryItems.Add(new InventoryItem
+                    {
+                        ProductId = product.Id, 
+                        SerialNumber = $"SN-{product.Name.Replace(" ", "").ToUpper()}-{Guid.NewGuid().ToString().Substring(0, 6)}",
+                        IsSold = false
+                    });
+                }
+                
+                _context.InventoryItems.AddRange(inventoryItems);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = $"До товару '{product.Name}' додано {quantity} серійних номерів." });
             }
             catch (Exception ex)
             {
@@ -126,9 +212,17 @@ namespace SmartTab.UI.Controllers
         [HttpDelete("api/products/{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product != null)
+            try
             {
+                var product = await _context.Products
+                    .Include(p => p.InventoryItems)
+                    .Include(p => p.Specifications)
+                    .FirstOrDefaultAsync(p => p.Id == id);
+                    
+                if (product == null)
+                    return NotFound("Товар не знайдено");
+
+                // Видаляємо зображення, якщо існує
                 if (!string.IsNullOrEmpty(product.ImageUrl))
                 {
                     var imagePath = Path.Combine(_environment.WebRootPath, product.ImageUrl.TrimStart('/'));
@@ -138,10 +232,20 @@ namespace SmartTab.UI.Controllers
                     }
                 }
 
+                // Видаляємо пов'язані дані
+                _context.InventoryItems.RemoveRange(product.InventoryItems);
+                _context.ProductSpecifications.RemoveRange(product.Specifications);
+                
+                // Видаляємо сам товар
                 _context.Products.Remove(product);
                 await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Товар успішно видалено" });
             }
-            return Ok();
+            catch (Exception ex)
+            {
+                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         [HttpPut("api/products/{id}")]
@@ -158,6 +262,13 @@ namespace SmartTab.UI.Controllers
 
                 if (string.IsNullOrWhiteSpace(name) || price <= 0 || categoryId <= 0)
                     return BadRequest("Невалідні дані товару.");
+
+                // Перевірка на унікальність назви (окрім поточного товару)
+                var existingProduct = await _context.Products
+                    .FirstOrDefaultAsync(p => p.Name.ToLower().Trim() == name.ToLower().Trim() && p.Id != id);
+                
+                if (existingProduct != null)
+                    return BadRequest($"Товар з назвою '{name}' вже існує. Будь ласка, використайте іншу назву.");
 
                 product.Name = name.Trim();
                 product.Price = price;

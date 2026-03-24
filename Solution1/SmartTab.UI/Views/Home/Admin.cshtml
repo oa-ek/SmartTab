@@ -126,6 +126,9 @@
                     <div class="form-row">
                         <input type="number" id="stockCount" class="form-control" placeholder="Кількість на складі" min="0">
                     </div>
+                    <div class="form-row">
+                        <input type="number" id="initialQuantity" class="form-control" placeholder="Початкова кількість (для генерації серійних номерів)" min="0">
+                    </div>
 
                     <div id="dynamicSection" class="dynamic-section">
                         <div id="dynamicTitle" class="dynamic-title"></div>
@@ -346,7 +349,18 @@
             if(confirm('Ви впевнені, що хочете видалити цей товар?')) {
                 fetch('/api/products/' + id, {
                     method: 'DELETE'
-                }).then(() => loadProducts());
+                })
+                .then(response => {
+                    if (response.ok) {
+                        loadProducts();
+                    } else {
+                        alert('Помилка видалення товару');
+                    }
+                })
+                .catch(error => {
+                    console.error('Помилка:', error);
+                    alert('Сталася помилка при видаленні товару');
+                });
             }
         }
 
@@ -401,6 +415,7 @@
             formData.append('name', nameInput);
             formData.append('price', priceInput);
             formData.append('stockCount', document.getElementById('stockCount').value || 0);
+            formData.append('initialQuantity', document.getElementById('initialQuantity').value || 0);
             formData.append('specsJson', JSON.stringify(specs));
             if (imageInput) formData.append('image', imageInput);
 
@@ -488,6 +503,7 @@
             document.getElementById('name').value = '';
             document.getElementById('price').value = '';
             document.getElementById('stockCount').value = '';
+            document.getElementById('initialQuantity').value = '';
             document.getElementById('categoryId').value = '';
             document.getElementById('productType').value = '0';
             document.getElementById('imageInput').value = '';
