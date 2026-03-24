@@ -85,7 +85,7 @@
 
                         <div class="flex-1 flex flex-col gap-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <select id="productType" class="border border-gray-300 rounded p-2.5 text-sm w-full bg-white text-gray-700">
+                                <select id="productType" class="border border-gray-300 rounded p-2.5 text-sm w-full bg-white text-gray-700 transition-colors">
                                     <option value="0">Компонент (Component)</option>
                                     <option value="1">Готовий ПК</option>
                                 </select>
@@ -259,21 +259,31 @@
             document.querySelectorAll('input[name="productCategory"]').forEach(cb => {
                 if (cb !== checkbox) cb.checked = false;
             });
-            renderDynamicFields(checkbox.checked ? checkbox.value : '');
+            
+            const catId = checkbox.checked ? checkbox.value : '';
+            const productTypeSelect = document.getElementById('productType');
+            
+            if (catId) {
+                const catInfo = categoryMapping[catId];
+                const selectedCat = allCategories.find(c => c.id == catId);
+                const isPc = (catInfo && catInfo.key === 'pc') || (selectedCat && selectedCat.name.toLowerCase().includes('готовий пк'));
+                
+                productTypeSelect.value = isPc ? '1' : '0';
+                productTypeSelect.setAttribute('disabled', 'true');
+                productTypeSelect.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
+            } else {
+                productTypeSelect.value = '0';
+                productTypeSelect.removeAttribute('disabled');
+                productTypeSelect.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
+            }
+
+            renderDynamicFields(catId);
         }
 
         function handleManufacturerCheckbox(checkbox) {
             document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => {
                 if (cb !== checkbox) cb.checked = false;
             });
-            const selectedManufacturerId = getSelectedId('productManufacturer');
-            if (selectedManufacturerId) {
-                const manufacturer = allManufacturers.find(m => m.id == selectedManufacturerId);
-                if (manufacturer) {
-                    document.getElementById('manufacturerNameInput').value = manufacturer.name;
-                    document.getElementById('manufacturerDescInput').value = manufacturer.description;
-                }
-            }
         }
 
         function renderCheckboxes() {
@@ -282,9 +292,9 @@
                 catContainer.innerHTML = '<div class="text-gray-400 text-xs italic">Пусто</div>';
             } else {
                 catContainer.innerHTML = allCategories.map(cat => `
-                    <label class="flex items-center space-x-2 cursor-pointer group">
+                    <label class="flex items-center space-x-2 cursor-pointer group py-0.5">
                         <input type="checkbox" name="productCategory" value="${cat.id}" id="cat-cb-${cat.id}" class="checkbox-custom rounded border-gray-300 w-4 h-4 cursor-pointer" onchange="handleCategoryCheckbox(this)">
-                        <span class="text-gray-700 group-hover:text-st-purple transition-colors">${cat.name}</span>
+                        <span class="text-gray-700 group-hover:text-st-purple transition-colors text-sm">${cat.name}</span>
                     </label>
                 `).join('');
             }
@@ -294,9 +304,9 @@
                 mfgContainer.innerHTML = '<div class="text-gray-400 text-xs italic">Пусто</div>';
             } else {
                 mfgContainer.innerHTML = allManufacturers.map(mfg => `
-                    <label class="flex items-center space-x-2 cursor-pointer group">
+                    <label class="flex items-center space-x-2 cursor-pointer group py-0.5">
                         <input type="checkbox" name="productManufacturer" value="${mfg.id}" id="mfg-cb-${mfg.id}" class="checkbox-custom rounded border-gray-300 w-4 h-4 cursor-pointer" onchange="handleManufacturerCheckbox(this)">
-                        <span class="text-gray-700 group-hover:text-st-purple transition-colors">${mfg.name}</span>
+                        <span class="text-gray-700 group-hover:text-st-purple transition-colors text-sm">${mfg.name}</span>
                     </label>
                 `).join('');
             }
@@ -378,7 +388,7 @@
                     : `<div class="h-full w-full flex items-center justify-center bg-gray-50"><i class="fas fa-image text-gray-300 text-4xl"></i></div>`;
                 
                 const mfgName = allManufacturers.find(m => m.id == p.manufacturerId)?.name || 'Не вказано';
-                const currentStock = p.stockCount !== undefined && p.stockCount !== null && p.stockCount !== "" ? p.stockCount : 0;
+                const currentStock = p.stockCount !== undefined && p.stockCount !== null ? p.stockCount : 0;
 
                 html += `
                 <div class="border border-gray-200 rounded-lg p-4 flex flex-col hover:shadow-md transition-shadow bg-white relative group">
@@ -445,16 +455,16 @@
             const catId = getSelectedId('productCategory');
             const mfgId = getSelectedId('productManufacturer');
             const stockVal = document.getElementById('stockCount').value;
-            const initialVal = document.getElementById('initialQuantity').value;
+            const initVal = document.getElementById('initialQuantity').value;
             
             const formData = new FormData();
-            formData.append('productType', document.getElementById('productType').value);
-            formData.append('categoryId', catId || '');
-            formData.append('manufacturerId', mfgId || '');
+            formData.append('productType', document.getElementById('productType').value || "0");
+            formData.append('categoryId', catId || "0");
+            formData.append('manufacturerId', mfgId || "0");
             formData.append('name', document.getElementById('name').value.trim());
-            formData.append('price', document.getElementById('price').value || 0);
-            formData.append('stockCount', stockVal !== '' ? stockVal : 0);
-            formData.append('initialQuantity', initialVal !== '' ? initialVal : 0);
+            formData.append('price', document.getElementById('price').value || "0");
+            formData.append('stockCount', stockVal || "0");
+            formData.append('initialQuantity', initVal || "0");
 
             let specs = {};
             const catInfo = categoryMapping[catId];
@@ -487,17 +497,17 @@
             const catId = getSelectedId('productCategory');
             const mfgId = getSelectedId('productManufacturer');
             const stockVal = document.getElementById('stockCount').value;
-            const initialVal = document.getElementById('initialQuantity').value;
+            const initVal = document.getElementById('initialQuantity').value;
             
             const formData = new FormData();
             formData.append('id', id);
-            formData.append('productType', document.getElementById('productType').value);
-            formData.append('categoryId', catId || '');
-            formData.append('manufacturerId', mfgId || '');
+            formData.append('productType', document.getElementById('productType').value || "0");
+            formData.append('categoryId', catId || "0");
+            formData.append('manufacturerId', mfgId || "0");
             formData.append('name', document.getElementById('name').value.trim());
-            formData.append('price', document.getElementById('price').value);
-            formData.append('stockCount', stockVal);
-            formData.append('initialQuantity', initialVal);
+            formData.append('price', document.getElementById('price').value || "0");
+            formData.append('stockCount', stockVal || "0");
+            formData.append('initialQuantity', initVal || "0");
 
             let specs = {};
             const catInfo = categoryMapping[catId];
@@ -535,11 +545,17 @@
             resetForm(); 
 
             document.getElementById('productId').value = product.id;
-            document.getElementById('productType').value = product.productType || 0;
             document.getElementById('name').value = product.name || '';
             document.getElementById('price').value = product.price || '';
-            document.getElementById('stockCount').value = product.stockCount !== undefined && product.stockCount !== null ? product.stockCount : '';
-            document.getElementById('initialQuantity').value = product.initialQuantity !== undefined && product.initialQuantity !== null ? product.initialQuantity : '';
+            document.getElementById('stockCount').value = product.stockCount !== undefined && product.stockCount !== null ? product.stockCount : 0;
+            document.getElementById('initialQuantity').value = 0;
+            
+            const productTypeSelect = document.getElementById('productType');
+            if (product.productType !== undefined) {
+                productTypeSelect.value = product.productType;
+                productTypeSelect.setAttribute('disabled', 'true');
+                productTypeSelect.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
+            }
             
             if (product.categoryId) {
                 document.querySelectorAll('input[name="productCategory"]').forEach(cb => {
@@ -599,12 +615,13 @@
             document.getElementById('dynamicSection').classList.add('hidden');
             document.getElementById('dynamicGrid').innerHTML = '';
             
+            const productTypeSelect = document.getElementById('productType');
+            productTypeSelect.removeAttribute('disabled');
+            productTypeSelect.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
+            productTypeSelect.value = '0';
+            
             document.querySelectorAll('input[name="productCategory"]').forEach(cb => cb.checked = false);
             document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => cb.checked = false);
-
-            // Clear manufacturer form fields that might be auto-filled
-            document.getElementById('manufacturerNameInput').value = '';
-            document.getElementById('manufacturerDescInput').value = '';
 
             document.getElementById('form-title').innerText = 'Додати товар';
             document.getElementById('submitBtn').innerText = 'Додати до каталогу';
