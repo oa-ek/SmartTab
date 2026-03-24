@@ -4,10 +4,10 @@ public class ProductSpecification
 {
     public int Id { get; set; }
     
-    // Назва характеристики (наприклад: "Socket", "Memory Type", "Frequency")
+    // Назва характеристики ("Socket", "Memory Type")
     public string Key { get; set; } = null!;
     
-    // Значення (наприклад: "AM4", "DDR4", "3.6 GHz")
+    // Значення ("AM4", "DDR4")
     public string Value { get; set; } = null!;
 
     public int ProductId { get; set; }

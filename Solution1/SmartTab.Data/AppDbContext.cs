@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
+    public DbSet<BuildPart> BuildParts { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,5 +53,17 @@ public class AppDbContext : DbContext
             .WithMany(u => u.Reviews)
             .HasForeignKey(r => r.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BuildPart>()
+            .HasOne(bp => bp.Pc)
+            .WithMany(p => p.PcParts)
+            .HasForeignKey(bp => bp.PcId)
+            .OnDelete(DeleteBehavior.Cascade); 
+
+        modelBuilder.Entity<BuildPart>()
+            .HasOne(bp => bp.Component)
+            .WithMany(p => p.PartOfPcs)
+            .HasForeignKey(bp => bp.ComponentId)
+            .OnDelete(DeleteBehavior.Restrict); // поки компонент в збірці, ніт.
     }
-}
+}я
