@@ -1,0 +1,468 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartTab Адмін панель</title>
+
+    <style>
+            :root {
+                --primary-purple: #5a009c;
+                --dark-bg: #221f1f;
+                --light-bg: #f5f5f5;
+                --border-color: #e9e9e9;
+            }
+
+            body {
+                margin: 0;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                background: var(--light-bg);
+                color: #333;
+            }
+
+            .header {
+                background: var(--dark-bg);
+                color: white;
+                padding: 15px 30px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 25px;
+            }
+
+            .logo {
+                color: white;
+                font-size: 26px;
+                font-weight: 900;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+            }
+
+                .logo span {
+                    color: var(--primary-purple);
+                }
+
+            .catalog-btn {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: white;
+                padding: 10px 18px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: background 0.2s;
+            }
+
+                .catalog-btn:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+
+            .search-bar {
+                flex: 1;
+                max-width: 600px;
+                display: flex;
+            }
+
+                .search-bar input {
+                    border-radius: 4px 0 0 4px;
+                    border: none;
+                    margin: 0;
+                    padding: 12px 15px;
+                    width: 100%;
+                }
+
+                .search-bar button {
+                    border-radius: 0 4px 4px 0;
+                    margin: 0;
+                }
+
+            .container {
+                max-width: 1400px;
+                margin: 30px auto;
+                padding: 0 20px;
+            }
+
+            .panel {
+                background: white;
+                border-radius: 8px;
+                padding: 25px;
+                margin-bottom: 25px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            }
+
+            h3 {
+                margin-top: 0;
+                color: #221f1f;
+                font-size: 22px;
+                border-bottom: 3px solid var(--primary-purple);
+                padding-bottom: 10px;
+                display: inline-block;
+            }
+
+            .form-group {
+                display: flex;
+                gap: 15px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin-top: 15px;
+            }
+
+            .dynamic-fields-container {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px dashed var(--border-color);
+                display: none;
+                gap: 15px;
+                flex-wrap: wrap;
+            }
+
+            input, select {
+                padding: 12px 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 4px;
+                font-size: 14px;
+                flex: 1;
+                min-width: 200px;
+                outline: none;
+                transition: border-color 0.2s;
+                font-family: inherit;
+            }
+
+                input:focus, select:focus {
+                    border-color: var(--primary-purple);
+                }
+
+            .btn-submit {
+                padding: 12px 24px;
+                background: var(--primary-purple);
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+                font-size: 14px;
+                transition: background 0.2s;
+                margin-top: 15px;
+            }
+
+                .btn-submit:hover {
+                    background: #5a009c;
+                }
+
+            .delete-btn {
+                background: #ff3b30;
+                padding: 8px 12px;
+                border-radius: 4px;
+                border: none;
+                cursor: pointer;
+            }
+
+                .delete-btn:hover {
+                    background: #d63026;
+                }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }
+
+            th, td {
+                padding: 15px 10px;
+                text-align: left;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            th {
+                color: #797878;
+                font-weight: 600;
+                font-size: 14px;
+                text-transform: uppercase;
+            }
+
+            td input, td select {
+                width: 90%;
+                min-width: auto;
+                padding: 8px 10px;
+                border-color: transparent;
+                background: transparent;
+                margin: 0;
+            }
+
+                td input:focus, td select:focus {
+                    background: white;
+                    border-color: var(--primary-purple);
+                    box-shadow: 0 0 5px rgba(112, 0, 255, 0.2);
+                }
+
+                td input:hover:not(:focus), td select:hover:not(:focus) {
+                    border-color: var(--border-color);
+                }
+
+            .specs-preview {
+                font-size: 12px;
+                color: #666;
+                background: #f9f9f9;
+                padding: 5px 8px;
+                border-radius: 4px;
+                border: 1px solid #eee;
+                max-width: 250px;
+                word-wrap: break-word;
+            }
+
+            .actions {
+                text-align: center;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">Smart<span>Tab</span></div>
+            <button class="catalog-btn" onclick="window.location.href='/'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"></path></svg>
+                На головну
+            </button>
+        </div>
+        <div class="search-bar">
+            <input type="text" placeholder="Пошук в адмінці...">
+            <button class="btn-submit" style="margin-top: 0; border-radius: 0 4px 4px 0;">Знайти</button>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <div class="panel">
+            <h3>Додати товар</h3>
+            
+            <div class="form-group">
+                <select id="category" onchange="renderDynamicFields()">
+                    <option value="" disabled selected>Оберіть категорію товару...</option>
+                    <option value="pc">Готовий ПК</option>
+                    <option value="cpu">Процесор (CPU)</option>
+                    <option value="gpu">Відеокарта (GPU)</option>
+                    <option value="motherboard">Материнська плата</option>
+                    <option value="ram">Оперативна пам'ять (RAM)</option>
+                    <option value="storage">Накопичувач (SSD/HDD)</option>
+                    <option value="psu">Блок живлення</option>
+                </select>
+                <input type="text" id="name" placeholder="Назва товару">
+                <input type="number" id="price" placeholder="Ціна (₴)">
+            </div>
+
+            <div id="dynamicFields" class="dynamic-fields-container"></div>
+
+            <button class="btn-submit" onclick="addProduct()">Додати до каталогу</button>
+        </div>
+
+        <div class="panel">
+            <h3>Список товарів</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th style="width: 150px;">Категорія</th>
+                        <th>Назва</th>
+                        <th style="width: 120px;">Ціна (₴)</th>
+                        <th>Характеристики</th>
+                        <th style="width: 80px; text-align: center;">Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="products"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+            const categoryLabels = {
+                'pc': 'Готовий ПК',
+                'cpu': 'Процесор',
+                'gpu': 'Відеокарта',
+                'motherboard': 'Материнська плата',
+                'ram': 'ОЗП',
+                'storage': 'Накопичувач',
+                'psu': 'Блок живлення'
+            };
+
+            const specsSchema = {
+                cpu: [
+                    { id: 'cores', label: 'Кількість ядер', type: 'number' },
+                    { id: 'threads', label: 'Кількість потоків', type: 'number' },
+                    { id: 'socket', label: 'Сокет', type: 'text' },
+                    { id: 'tdp', label: 'Енергоспоживання TDP (Вт)', type: 'number' },
+                    { id: 'frequency', label: 'Базова частота (ГГц)', type: 'text' }
+                ],
+                gpu: [
+                    { id: 'vram', label: "Об'єм пам'яті (ГБ)", type: 'number' },
+                    { id: 'memoryType', label: "Тип пам'яті (напр. GDDR6)", type: 'text' },
+                    { id: 'tdp', label: 'Енергоспоживання (Вт)', type: 'number' },
+                    { id: 'length', label: 'Довжина відеокарти (мм)', type: 'number' }
+                ],
+                motherboard: [
+                    { id: 'socket', label: 'Сокет', type: 'text' },
+                    { id: 'chipset', label: 'Чипсет (напр. B650)', type: 'text' },
+                    { id: 'formFactor', label: 'Форм-фактор (ATX/Micro-ATX)', type: 'text' },
+                    { id: 'ramType', label: 'Тип підтримуваної ОЗП', type: 'text' }
+                ],
+                ram: [
+                    { id: 'capacity', label: "Об'єм (ГБ)", type: 'number' },
+                    { id: 'type', label: "Тип пам'яті (DDR4/DDR5)", type: 'text' },
+                    { id: 'frequency', label: 'Частота (МГц)', type: 'number' }
+                ],
+                storage: [
+                    { id: 'capacity', label: "Об'єм (ГБ/ТБ)", type: 'text' },
+                    { id: 'type', label: "Тип (SSD/HDD/M.2)", type: 'text' },
+                    { id: 'readSpeed', label: 'Швидкість читання (МБ/с)', type: 'number' }
+                ],
+                psu: [
+                    { id: 'power', label: 'Потужність (Вт)', type: 'number' },
+                    { id: 'certification', label: 'Сертифікат (напр. 80+ Gold)', type: 'text' },
+                    { id: 'formFactor', label: 'Форм-фактор', type: 'text' }
+                ],
+                pc: [
+                    { id: 'cpu', label: 'Встановлений процесор', type: 'text' },
+                    { id: 'gpu', label: 'Встановлена відеокарта', type: 'text' },
+                    { id: 'motherboard', label: 'Встановлена материнська плата', type: 'text' },
+                    { id: 'cooler', label: 'Тип кулера', type: 'text' },
+                    { id: 'ram', label: 'Встановлена ОЗП', type: 'text' },
+                    { id: 'storage', label: 'Встановлений накопичувач', type: 'text' },
+                    { id: 'psu', label: 'Встановлений блок живлення', type: 'text' },
+                    { id: 'case', label: 'Корпус', type: 'text' }
+                ]
+            };
+
+            function renderDynamicFields() {
+                const category = document.getElementById('category').value;
+                const container = document.getElementById('dynamicFields');
+            
+                if (!category || !specsSchema[category]) {
+                    container.style.display = 'none';
+                    container.innerHTML = '';
+                    return;
+                }
+
+                let html = `<strong>Характеристики для ${categoryLabels[category]}:</strong><br><div style="width: 100%; display: flex; gap: 15px; flex-wrap: wrap;">`;
+            
+                specsSchema[category].forEach(field => {
+                    html += `<input type="${field.type}" id="spec_${field.id}" placeholder="${field.label}">`;
+                });
+            
+                html += `</div>`;
+
+                container.innerHTML = html;
+                container.style.display = 'flex';
+            }
+
+            function loadProducts() {
+                fetch('/api/products')
+                    .then(res => res.json())
+                    .then(data => {
+                        let html = '';
+                        data.forEach(p => {
+                            let specsFormatted = '';
+                            if (p.specs && typeof p.specs === 'object') {
+                                specsFormatted = Object.entries(p.specs)
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join(', ');
+                            }
+
+                            html += `
+                            <tr>
+                                <td><strong>${p.id}</strong></td>
+                                <td>
+                                    <select onchange="update(${p.id}, this.value, 'category')">
+                                        ${Object.entries(categoryLabels).map(([val, label]) =>
+                                            `<option value="${val}" ${p.category === val ? 'selected' : ''}>${label}</option>`
+                                        ).join('')}
+                                    </select>
+                                </td>
+                                <td><input value="${p.name}" onchange="update(${p.id}, this.value, 'name')"></td>
+                                <td><input type="number" value="${p.price}" onchange="update(${p.id}, this.value, 'price')"></td>
+                                <td><div class="specs-preview" title="${specsFormatted}">${specsFormatted || 'Немає'}</div></td>
+                                <td class="actions">
+                                    <button class="delete-btn" onclick="deleteProduct(${p.id})">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            `;
+                        });
+                        document.getElementById('products').innerHTML = html;
+                    })
+                    .catch(err => console.error("Помилка завантаження товарів:", err));
+            }
+
+            function addProduct() {
+                const categoryInput = document.getElementById('category');
+                const nameInput = document.getElementById('name');
+                const priceInput = document.getElementById('price');
+                const category = categoryInput.value;
+
+                if (!category) {
+                    alert("Оберіть категорію товару!");
+                    return;
+                }
+
+                let specs = {};
+                if (specsSchema[category]) {
+                    specsSchema[category].forEach(field => {
+                        const el = document.getElementById(`spec_${field.id}`);
+                        if (el && el.value) {
+                            specs[field.id] = field.type === 'number' ? parseFloat(el.value) : el.value;
+                        }
+                    });
+                }
+
+                fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        category: category,
+                        name: nameInput.value,
+                        price: parseFloat(priceInput.value) || 0,
+                        specs: specs
+                    })
+                }).then(() => {
+                    nameInput.value = '';
+                    priceInput.value = '';
+                    categoryInput.value = '';
+                    document.getElementById('dynamicFields').style.display = 'none';
+                    document.getElementById('dynamicFields').innerHTML = '';
+                    loadProducts();
+                });
+            }
+
+            function deleteProduct(id) {
+                fetch('/api/products/' + id, {
+                    method: 'DELETE'
+                }).then(() => loadProducts());
+            }
+
+            function update(id, value, field) {
+                fetch('/api/products/' + id, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        field: field,
+                        value: field === 'price' ? parseFloat(value) : value
+                    })
+                });
+            }
+
+            loadProducts();
+    </script>
+
+</body>
+</html>
