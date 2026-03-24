@@ -1,30 +1,124 @@
 using Microsoft.AspNetCore.Mvc;
-using SmartTab.UI.Models;
-using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using SmartTab.Data;
+using SmartTab.Core;
+using System.IO;
 
 namespace SmartTab.UI.Controllers
 {
     public class HomeController : Controller
     {
-        public IActionResult Index()
+        private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _environment;
+
+        public HomeController(AppDbContext context, IWebHostEnvironment environment)
         {
-            return View();
+            _context = context;
+            _environment = environment;
         }
 
-        public IActionResult Privacy()
+        public IActionResult Index() => View();
+        public IActionResult Admin() => View();
+
+        [HttpGet("api/products")]
+        public async Task<IActionResult> GetProducts()
         {
-            return View();
+            var products = await _context.Products
+                .Include(p => p.Specifications)
+                .Include(p => p.Category)
+                .Select(p => new {
+                    p.Id,
+                    p.Name,
+                    p.Price,
+                    p.ImageUrl,
+                    CategoryId = p.CategoryId,
+                    ProductType = (int)p.Type,
+                    CategoryName = p.Category != null ? p.Category.Name : "Невідомо",
+                    Specs = p.Specifications.Select(s => new { s.Name, s.Value })
+                })
+                .OrderByDescending(p => p.Id)
+                .ToListAsync();
+
+            return Ok(products);
         }
 
-        public IActionResult Admin()
+        [HttpPost("api/products")]
+        public async Task<IActionResult> AddProduct([FromForm] string name, [FromForm] decimal price, [FromForm] int categoryId, [FromForm] int productType, [FromForm] string specsJson, IFormFile? image)
         {
-            return View();
+            try
+            {
+                if (string.IsNullOrWhiteSpace(name) || price <= 0 || categoryId <= 0)
+                    return BadRequest("Невалідні дані товару.");
+
+                var product = new Product
+                {
+                    Name = name.Trim(),
+                    Price = price,
+                    CategoryId = categoryId,
+                    Type = (ProductType)productType
+                };
+
+                if (image != null && image.Length > 0)
+                {
+                    string uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads");
+                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(image.FileName);
+                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await image.CopyToAsync(fileStream);
+                    }
+                    product.ImageUrl = "/uploads/" + uniqueFileName;
+                }
+
+                if (!string.IsNullOrWhiteSpace(specsJson))
+                {
+                    var specsDict = JsonSerializer.Deserialize<Dictionary<string, string>>(specsJson);
+                    if (specsDict != null)
+                    {
+                        foreach (var spec in specsDict)
+                        {
+                            if (!string.IsNullOrWhiteSpace(spec.Value))
+                            {
+                                product.Specifications.Add(new ProductSpecification { Name = spec.Key, Value = spec.Value.Trim() });
+                            }
+                        }
+                    }
+                }
+
+                _context.Products.Add(product);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Товар успішно додано" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
+        [HttpDelete("api/products/{id}")]
+        public async Task<IActionResult> DeleteProduct(int id)
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            var product = await _context.Products.FindAsync(id);
+            if (product != null)
+            {
+                if (!string.IsNullOrEmpty(product.ImageUrl))
+                {
+                    var imagePath = Path.Combine(_environment.WebRootPath, product.ImageUrl.TrimStart('/'));
+                    if (System.IO.File.Exists(imagePath))
+                    {
+                        System.IO.File.Delete(imagePath);
+                    }
+                }
+
+                _context.Products.Remove(product);
+                await _context.SaveChangesAsync();
+            }
+            return Ok();
         }
     }
 }
