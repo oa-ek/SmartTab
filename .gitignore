@@ -1,8 +1,3 @@
-Solution1/.vs/SmartTab.slnx/v18/DocumentLayout.json
-Solution1/.vs/Solution1/CopilotIndices/18.4.106.63888/CodeChunks.db
-Solution1/.vs/Solution1/CopilotIndices/18.4.106.63888/CodeChunks.db-shm
-Solution1/.vs/Solution1/CopilotIndices/18.4.106.63888/CodeChunks.db-wal
-Solution1/.vs/Solution1/CopilotIndices/18.4.106.63888/SemanticSymbols.db
-Solution1/.vs/Solution1/CopilotIndices/18.4.106.63888/SemanticSymbols.db-shm
-Solution1/.vs/Solution1/CopilotIndices/18.4.106.63888/SemanticSymbols.db-wal
-Solution1/.vs/SmartTab.slnx/v18/.suo
+.vs/
+obj/
+bin/

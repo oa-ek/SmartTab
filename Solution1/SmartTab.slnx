@@ -1,1 +1,6 @@
-<Solution />
+<Solution>
+  <Project Path="SmartTab.Core/SmartTab.Core.csproj" />
+  <Project Path="SmartTab.Data/SmartTab.Data.csproj" />
+  <Project Path="SmartTab.Services/SmartTab.Services.csproj" />
+  <Project Path="SmartTab.UI/SmartTab.UI.csproj" Id="1057b0b8-34d7-415a-920f-0a6d98e76c27" />
+</Solution>
