@@ -1085,7 +1085,6 @@
             if(mfg && mfg.productCount > 0) { alert('Неможливо видалити, є товари.'); return; }
             if(confirm('Видалити?')) fetch('/api/manufacturers/'+id, {method:'DELETE'}).then(()=>loadData());
         }
-
         function resetManufacturerForm() {
             document.getElementById('manufacturer-form').reset();
             document.getElementById('editManufacturerId').value = '';
