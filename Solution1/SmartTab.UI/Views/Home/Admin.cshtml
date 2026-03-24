@@ -1,178 +1,190 @@
 ﻿@{
     Layout = null;
 }
+
 <!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>SmartTab - Адмін-панель</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTab Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-purple: #7000FF; 
-            --dark-bg: #221f1f;
-            --light-bg: #f5f5f5;
-            --border-color: #e0e0e0;
-            --text-main: #333;
-            --text-link: #3e77aa;
-            --success-green: #00a046;
+            --st-purple: #6f00ff;
+            --st-purple-hover: #5b00d6;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; }
+        .bg-st-purple { background-color: var(--st-purple); }
+        .hover\:bg-st-purple-hover:hover { background-color: var(--st-purple-hover); }
+        .text-st-purple { color: var(--st-purple); }
+        .border-st-purple { border-color: var(--st-purple); }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        
+        input:focus, select:focus, textarea:focus { 
+            outline: none; 
+            border-color: var(--st-purple); 
+            box-shadow: 0 0 0 2px rgba(111, 0, 255, 0.1); 
         }
 
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--light-bg); color: var(--text-main); }
-        .header { background: var(--dark-bg); color: white; padding: 15px 30px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-        .logo { color: white; font-size: 26px; font-weight: 900; text-transform: uppercase; text-decoration: none; letter-spacing: 0.5px; }
-        .logo span { color: var(--primary-purple); }
-        .nav-link { color: white; text-decoration: none; font-weight: bold; font-size: 15px; transition: color 0.2s; }
-        .nav-link:hover { color: #d4b3ff; }
-
-        .search-bar { flex: 1; max-width: 600px; display: flex; margin: 0 20px; }
-        .search-bar input { border-radius: 4px 0 0 4px; border: none; padding: 10px 15px; width: 100%; outline: none; font-family: inherit; font-size: 15px; }
-        .search-bar button { border-radius: 0 4px 4px 0; background: var(--success-green); color: white; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; font-size: 15px; transition: background 0.2s; }
-        .search-bar button:hover { background: #008a3c; }
-
-        .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
-        .panel { background: white; border-radius: 8px; padding: 30px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); }
-        .section-title { font-size: 22px; font-weight: bold; color: #111; margin-top: 0; margin-bottom: 30px; border-bottom: 3px solid var(--primary-purple); display: inline-block; padding-bottom: 8px; }
-
-        .form-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-start; }
-        .form-control { flex: 1; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; outline: none; color: var(--text-main); transition: border-color 0.2s; font-family: inherit; background: white; }
-        .form-control:focus { border-color: var(--primary-purple); }
-        .form-control.error { border-color: #ff3b30; }
-
-        .image-upload-container { width: 150px; height: 150px; border: 2px dashed var(--border-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; background: #fff; flex-shrink: 0; transition: border-color 0.2s; }
-        .image-upload-container:hover { border-color: var(--primary-purple); }
-        .image-upload-container img { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .image-upload-container span { font-size: 14px; color: #999; text-align: center; font-weight: bold; }
-        #imageInput { display: none; }
-
-        .dynamic-section { border-top: 1px dashed var(--border-color); padding-top: 25px; margin-top: 10px; display: none; }
-        .dynamic-title { font-weight: bold; margin-bottom: 20px; font-size: 15px; color: #111; }
-        .dynamic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
-        .btn-submit { background: var(--primary-purple); color: white; border: none; padding: 14px 28px; border-radius: 4px; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 25px; transition: background 0.2s; }
-        .btn-submit:hover { background: #5a00cc; }
-        .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
-
-        .catalog-layout { display: flex; gap: 30px; align-items: flex-start; }
-        .sidebar { width: 260px; flex-shrink: 0; background: #fff; border-right: 1px solid var(--border-color); padding-right: 20px; }
-        .filter-section { margin-bottom: 25px; padding-bottom: 25px; border-bottom: 1px solid var(--border-color); }
-        .filter-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        .filter-title { font-weight: bold; font-size: 16px; margin-bottom: 15px; color: #111; }
-        .filter-label { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 14px; cursor: pointer; color: #444; }
-        .filter-label:hover { color: var(--primary-purple); }
-        .filter-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary-purple); }
-
-        .main-content { flex-grow: 1; }
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
-        .product-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; transition: box-shadow 0.2s; position: relative; }
-        .product-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .product-image { height: 160px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; overflow: hidden; padding: 10px;}
-        .product-image img { width: 100%; height: 100%; object-fit: contain; }
-        .product-image svg { color: #e0e0e0; }
-        .product-title { font-size: 14px; color: var(--text-link); text-decoration: none; margin-bottom: 10px; line-height: 1.4; font-weight: 500; }
-        .product-title:hover { text-decoration: underline; color: #f53b3b; }
-        .product-specs { font-size: 12px; color: #666; margin-bottom: 15px; line-height: 1.5; flex-grow: 1; }
-        .product-price-row { display: flex; align-items: center; justify-content: space-between; margin-top: auto; border-top: 1px solid #f0f0f0; padding-top: 15px; }
-        .price { font-size: 22px; font-weight: bold; color: #f53b3b; }
-        .delete-btn { background: #ffebe9; color: #ff3b30; border: none; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; }
-        .delete-btn:hover { background: #ffd6d4; }
-        .category-badge { position: absolute; top: 15px; left: 15px; background: rgba(112, 0, 255, 0.9); color: white; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; z-index: 10; }
-        .type-badge { position: absolute; top: 15px; right: 15px; background: #333; color: white; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; z-index: 10; }
+        .checkbox-custom:checked {
+            background-color: var(--st-purple);
+            border-color: var(--st-purple);
+        }
     </style>
 </head>
-<body>
+<body class="text-gray-800">
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-black border-b border-gray-900 sticky top-0 z-50 shadow-md text-white">
+            <div class="max-w-[1400px] mx-auto px-4 h-[70px] flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4 shrink-0">
+                    <button class="text-2xl hover:text-st-purple transition-colors"><i class="fas fa-bars"></i></button>
+                    <div class="flex items-center text-st-purple text-2xl font-bold tracking-tight cursor-pointer">
+                        <i class="fas fa-layer-group mr-2 text-2xl"></i>
+                        <span>SmartTab <span class="text-white font-black">Admin</span></span>
+                    </div>
+                </div>
 
-    <div class="header">
-        <a href="/" class="logo">Smart<span>Tab</span></a>
-        <div class="search-bar">
-            <input type="text" id="searchInputTop" placeholder="Я шукаю..." onkeyup="if(event.key === 'Enter') filterProducts()">
-            <button onclick="filterProducts()">Пошук</button>
-        </div>
-        <a href="/" class="nav-link">На головну</a>
-    </div>
-
-    <div class="container">
-        
-        <div class="panel">
-            <h2 class="section-title">Додати товар</h2>
-            
-            <div class="form-row">
-                <div class="image-upload-container" onclick="document.getElementById('imageInput').click()">
-                    <span id="uploadPlaceholder">Додати<br>фото</span>
-                    <img id="imagePreview" src="" alt="Preview">
-                    <input type="file" id="imageInput" accept="image/jpeg, image/png, image/webp" onchange="previewImage(this)">
+                <div class="flex-1 max-w-xl mx-8 relative hidden md:block flex items-center">
+                    <input type="text" id="searchInput" placeholder="Я шукаю..." 
+                           class="w-full py-2.5 px-4 pr-[100px] rounded border-none text-sm focus:ring-2 focus:ring-st-purple text-black bg-white outline-none" 
+                           onkeyup="filterProducts()">
+                    <button class="absolute right-0 top-0 h-full px-6 bg-st-purple hover:bg-st-purple-hover transition-colors text-white text-sm font-medium rounded-r">
+                        Знайти
+                    </button>
                 </div>
                 
-                <div style="flex: 1;">
+                <div class="w-[24px]"></div>
+            </div>
+        </header>
+
+        <main class="max-w-[1400px] mx-auto w-full px-4 py-8">
+            <div class="bg-white p-6 rounded shadow-sm mb-8 border border-gray-100">
+                <h2 class="text-xl font-bold mb-6 text-gray-900 border-b-2 border-st-purple inline-block pb-1" id="form-title">
+                    Додати товар
+                </h2>
+                
+                <form id="product-form">
                     <input type="hidden" id="productId" value="">
-                    <div class="form-row">
-                        <select class="form-control" id="productType">
-                            <option value="0" selected>Компонент (Component)</option>
-                            <option value="1">Зібраний ПК (BuiltPc)</option>
-                        </select>
-                        <select class="form-control" id="categoryId" onchange="renderDynamicFields()">
-                            <option value="" disabled selected>Оберіть категорію товару...</option>
-                            <option value="1">Готовий ПК</option>
-                            <option value="2">Процесор (CPU)</option>
-                            <option value="3">Відеокарта (GPU)</option>
-                            <option value="4">Материнська плата</option>
-                            <option value="5">Оперативна пам'ять (RAM)</option>
-                            <option value="6">Накопичувач (SSD/HDD)</option>
-                            <option value="7">Блок живлення</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <input type="text" id="name" class="form-control" placeholder="Назва товару">
-                        <input type="number" id="price" class="form-control" placeholder="Ціна (₴)" min="1">
-                    </div>
-                    <div class="form-row">
-                        <input type="number" id="stockCount" class="form-control" placeholder="Кількість на складі" min="0">
-                    </div>
-                    <div class="form-row">
-                        <input type="number" id="initialQuantity" class="form-control" placeholder="Початкова кількість (для генерації серійних номерів)" min="0">
+                    
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="w-full md:w-[200px] shrink-0">
+                            <div class="border-2 border-dashed border-gray-300 rounded w-full h-[200px] flex flex-col items-center justify-center text-gray-500 hover:border-st-purple cursor-pointer relative bg-gray-50 transition-colors group">
+                                <input id="imageInput" type="file" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" onchange="previewImage(this)">
+                                <div id="uploadPlaceholder" class="text-center group-hover:text-st-purple transition-colors">
+                                    <span class="block text-sm font-medium">Додати<br>фото</span>
+                                </div>
+                                <img id="imagePreview" src="" class="hidden w-full h-full object-contain p-2">
+                            </div>
+                        </div>
+
+                        <div class="flex-1 flex flex-col gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <select id="productType" class="border border-gray-300 rounded p-2.5 text-sm w-full bg-white text-gray-700">
+                                    <option value="0">Компонент (Component)</option>
+                                    <option value="1">Готовий ПК</option>
+                                </select>
+                                <input type="number" id="price" step="0.01" min="0" class="border border-gray-300 rounded p-2.5 text-sm w-full" placeholder="Ціна (₴)">
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input type="text" id="name" class="border border-gray-300 rounded p-2.5 text-sm w-full" placeholder="Назва товару">
+                                <input type="number" id="stockCount" min="0" class="border border-gray-300 rounded p-2.5 text-sm w-full" placeholder="Кількість на складі">
+                            </div>
+
+                            <input type="number" id="initialQuantity" min="0" class="border border-gray-300 rounded p-2.5 text-sm w-full" placeholder="Початкова кількість (для генерації серійних номерів)">
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                <div class="border border-gray-200 rounded p-3 bg-gray-50/50">
+                                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Категорія</label>
+                                    <div id="categoryCheckboxes" class="max-h-32 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+                                    </div>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 bg-gray-50/50">
+                                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Виробник</label>
+                                    <div id="manufacturerCheckboxes" class="max-h-32 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div id="dynamicSection" class="dynamic-section">
-                        <div id="dynamicTitle" class="dynamic-title"></div>
-                        <div id="dynamicGrid" class="dynamic-grid"></div>
+                    <div id="dynamicSection" class="hidden mt-8 pt-6 border-t border-dashed border-gray-200">
+                        <h3 id="dynamicTitle" class="font-bold text-gray-900 mb-4 text-sm">Характеристики:</h3>
+                        <div id="dynamicGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex gap-3">
+                        <button type="button" id="submitBtn" onclick="addProduct()" class="flex-1 bg-st-purple hover:bg-st-purple-hover text-white font-medium py-2.5 px-6 rounded transition-colors text-sm">
+                            Додати до каталогу
+                        </button>
+                        <button type="button" id="cancelBtn" onclick="resetForm()" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2.5 px-6 rounded transition-colors text-sm">
+                            Скасувати
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                <div class="bg-white rounded shadow-sm border border-gray-100 p-5">
+                    <h2 class="text-sm font-bold mb-4 text-gray-900 flex items-center">
+                        <i class="fas fa-tags text-st-purple mr-2"></i> Керування категоріями
+                    </h2>
+                    <form id="category-form" class="space-y-3">
+                        <input type="hidden" id="editCategoryId" value="">
+                        <input type="text" id="categoryNameInput" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Назва категорії">
+                        <div class="flex gap-2">
+                            <button type="button" id="categorySubmitBtn" onclick="addCategory()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 rounded transition-colors text-sm">
+                                Зберегти
+                            </button>
+                            <button type="button" id="categoryCancelBtn" onclick="resetCategoryForm()" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 rounded text-sm">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </form>
+                    <div id="categories-list" class="mt-4 space-y-1 max-h-[200px] overflow-y-auto custom-scrollbar pr-2 text-sm"></div>
+                </div>
+
+                <div class="bg-white rounded shadow-sm border border-gray-100 p-5 lg:col-span-2">
+                    <h2 class="text-sm font-bold mb-4 text-gray-900 flex items-center">
+                        <i class="fas fa-industry text-st-purple mr-2"></i> Керування виробниками
+                    </h2>
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <form id="manufacturer-form" class="flex-1 space-y-3">
+                            <input type="hidden" id="editManufacturerId" value="">
+                            <input type="text" id="manufacturerNameInput" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Назва виробника">
+                            <textarea id="manufacturerDescInput" rows="2" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Опис виробника (необов'язково)"></textarea>
+                            <div class="flex gap-2">
+                                <button type="button" id="manufacturerSubmitBtn" onclick="addManufacturer()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 rounded transition-colors text-sm">
+                                    Зберегти виробника
+                                </button>
+                                <button type="button" id="manufacturerCancelBtn" onclick="resetManufacturerForm()" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 rounded text-sm">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </form>
+                        <div class="flex-1">
+                            <div id="manufacturers-list" class="space-y-1 max-h-[200px] overflow-y-auto custom-scrollbar pr-2 text-sm"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <button id="submitBtn" class="btn-submit" onclick="addProduct()">Додати до каталогу</button>
-            <button id="cancelBtn" class="btn-submit" onclick="resetForm()" style="background: #666; display: none;">Скасувати</button>
-        </div>
-
-        <div class="panel">
-            <h2 class="section-title">Список товарів</h2>
-            <div class="catalog-layout">
-                <aside class="sidebar">
-                    <div class="filter-section">
-                        <div class="filter-title">Бренди</div>
-                        <label class="filter-label"><input type="checkbox" value="asus" class="filter-brand" onchange="filterProducts()"> Asus</label>
-                        <label class="filter-label"><input type="checkbox" value="intel" class="filter-brand" onchange="filterProducts()"> Intel</label>
-                        <label class="filter-label"><input type="checkbox" value="amd" class="filter-brand" onchange="filterProducts()"> AMD</label>
-                        <label class="filter-label"><input type="checkbox" value="nvidia" class="filter-brand" onchange="filterProducts()"> NVIDIA</label>
-                        <label class="filter-label"><input type="checkbox" value="kingston" class="filter-brand" onchange="filterProducts()"> Kingston</label>
-                        <label class="filter-label"><input type="checkbox" value="samsung" class="filter-brand" onchange="filterProducts()"> Samsung</label>
-                    </div>
-
-                    <div class="filter-section">
-                        <div class="filter-title">Комплектуючі та ПК</div>
-                        <label class="filter-label"><input type="checkbox" value="1" class="filter-cat" onchange="filterProducts()"> Готовий ПК</label>
-                        <label class="filter-label"><input type="checkbox" value="2" class="filter-cat" onchange="filterProducts()"> Процесор (CPU)</label>
-                        <label class="filter-label"><input type="checkbox" value="3" class="filter-cat" onchange="filterProducts()"> Відеокарта (GPU)</label>
-                        <label class="filter-label"><input type="checkbox" value="4" class="filter-cat" onchange="filterProducts()"> Материнська плата</label>
-                        <label class="filter-label"><input type="checkbox" value="5" class="filter-cat" onchange="filterProducts()"> Оперативна пам'ять</label>
-                        <label class="filter-label"><input type="checkbox" value="6" class="filter-cat" onchange="filterProducts()"> Накопичувач</label>
-                        <label class="filter-label"><input type="checkbox" value="7" class="filter-cat" onchange="filterProducts()"> Блок живлення</label>
-                    </div>
-                </aside>
-
-                <div class="main-content">
-                    <div id="products-grid" class="products-grid"></div>
+            <div class="bg-white rounded shadow-sm border border-gray-100 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">Всі товари <span id="product-count-label" class="text-gray-400 font-normal ml-2 text-sm"></span></h2>
+                </div>
+                
+                <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                 </div>
             </div>
-        </div>
-
+        </main>
     </div>
 
     <script>
@@ -182,8 +194,9 @@
             '3': { label: 'Відеокарта', key: 'gpu' },
             '4': { label: 'Материнська плата', key: 'motherboard' },
             '5': { label: 'ОЗП', key: 'ram' },
-            '6': { label: 'Накопичувач', key: 'storage' },
-            '7': { label: 'Блок живлення', key: 'psu' }
+            '6': { label: 'SSD', key: 'ssd' },
+            '7': { label: 'HDD', key: 'hdd' },
+            '8': { label: 'Блок живлення', key: 'psu' }
         };
 
         const specsSchema = {
@@ -208,41 +221,101 @@
             ],
             ram: [
                 { id: 'capacity', label: "Об'єм (ГБ)" }, { id: 'type', label: "Тип (DDR4/DDR5)" },
-                { id: 'frequency', label: 'Частота (МГц)' }
+                { id: 'frequency', label: 'Частота (МГц)' }, { id: 'latency', label: 'Таймінги (CL)' }
             ],
-            storage: [
-                { id: 'capacity', label: "Об'єм (ГБ/ТБ)" }, { id: 'type', label: "Тип (SSD/HDD/M.2)" },
-                { id: 'readSpeed', label: 'Швидкість читання (МБ/с)' }
+            ssd: [
+                { id: 'capacity', label: "Об'єм (ГБ/ТБ)" }, { id: 'formFactor', label: 'Форм-фактор (2.5"/M.2)' },
+                { id: 'interface', label: 'Інтерфейс (SATA/NVMe)' }, { id: 'readSpeed', label: 'Швидкість читання (МБ/с)' }
+            ],
+            hdd: [
+                { id: 'capacity', label: "Об'єм (ГБ/ТБ)" }, { id: 'rpm', label: 'Швидкість шпинделя (об/хв)' },
+                { id: 'buffer', label: 'Буфер (МБ)' }, { id: 'interface', label: 'Інтерфейс' }
             ],
             psu: [
-                { id: 'power', label: 'Потужність (Вт)' }, { id: 'certification', label: 'Сертифікат (80+)' }
+                { id: 'power', label: 'Потужність (Вт)' }, { id: 'certification', label: 'Сертифікат (80+)' },
+                { id: 'formFactor', label: 'Форм-фактор (ATX/SFX)' }
             ]
         };
 
         let allProducts = [];
+        let allCategories = [];
+        let allManufacturers = [];
+
+        document.addEventListener('DOMContentLoaded', loadData);
 
         function previewImage(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = e => {
                     document.getElementById('imagePreview').src = e.target.result;
-                    document.getElementById('imagePreview').style.display = 'block';
-                    document.getElementById('uploadPlaceholder').style.display = 'none';
+                    document.getElementById('imagePreview').classList.remove('hidden');
+                    document.getElementById('uploadPlaceholder').classList.add('hidden');
                 };
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
-        function renderDynamicFields() {
-            const catId = document.getElementById('categoryId').value;
-            document.getElementById('categoryId').classList.remove('error');
-            const catInfo = categoryMapping[catId];
+        function handleCategoryCheckbox(checkbox) {
+            document.querySelectorAll('input[name="productCategory"]').forEach(cb => {
+                if (cb !== checkbox) cb.checked = false;
+            });
+            renderDynamicFields(checkbox.checked ? checkbox.value : '');
+        }
+
+        function handleManufacturerCheckbox(checkbox) {
+            document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => {
+                if (cb !== checkbox) cb.checked = false;
+            });
+            const selectedManufacturerId = getSelectedId('productManufacturer');
+            if (selectedManufacturerId) {
+                const manufacturer = allManufacturers.find(m => m.id == selectedManufacturerId);
+                if (manufacturer) {
+                    document.getElementById('manufacturerNameInput').value = manufacturer.name;
+                    document.getElementById('manufacturerDescInput').value = manufacturer.description;
+                }
+            }
+        }
+
+        function renderCheckboxes() {
+            const catContainer = document.getElementById('categoryCheckboxes');
+            if (allCategories.length === 0) {
+                catContainer.innerHTML = '<div class="text-gray-400 text-xs italic">Пусто</div>';
+            } else {
+                catContainer.innerHTML = allCategories.map(cat => `
+                    <label class="flex items-center space-x-2 cursor-pointer group">
+                        <input type="checkbox" name="productCategory" value="${cat.id}" id="cat-cb-${cat.id}" class="checkbox-custom rounded border-gray-300 w-4 h-4 cursor-pointer" onchange="handleCategoryCheckbox(this)">
+                        <span class="text-gray-700 group-hover:text-st-purple transition-colors">${cat.name}</span>
+                    </label>
+                `).join('');
+            }
+
+            const mfgContainer = document.getElementById('manufacturerCheckboxes');
+            if (allManufacturers.length === 0) {
+                mfgContainer.innerHTML = '<div class="text-gray-400 text-xs italic">Пусто</div>';
+            } else {
+                mfgContainer.innerHTML = allManufacturers.map(mfg => `
+                    <label class="flex items-center space-x-2 cursor-pointer group">
+                        <input type="checkbox" name="productManufacturer" value="${mfg.id}" id="mfg-cb-${mfg.id}" class="checkbox-custom rounded border-gray-300 w-4 h-4 cursor-pointer" onchange="handleManufacturerCheckbox(this)">
+                        <span class="text-gray-700 group-hover:text-st-purple transition-colors">${mfg.name}</span>
+                    </label>
+                `).join('');
+            }
+        }
+
+        function renderDynamicFields(catId) {
             const section = document.getElementById('dynamicSection');
             const title = document.getElementById('dynamicTitle');
             const grid = document.getElementById('dynamicGrid');
             
+            if (!catId) {
+                section.classList.add('hidden');
+                grid.innerHTML = '';
+                return;
+            }
+
+            const catInfo = categoryMapping[catId];
             if (!catInfo || !specsSchema[catInfo.key]) {
-                section.style.display = 'none';
+                section.classList.add('hidden');
                 grid.innerHTML = '';
                 return;
             }
@@ -251,312 +324,418 @@
             
             let html = '';
             specsSchema[catInfo.key].forEach(field => {
-                html += `<input type="text" class="form-control" id="spec_${field.id}" placeholder="${field.label}">`;
+                html += `<input type="text" class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-st-purple" id="spec_${field.id}" placeholder="${field.label}">`;
             });
             
             grid.innerHTML = html;
-            section.style.display = 'block';
+            section.classList.remove('hidden');
         }
 
-        function loadProducts() {
-            fetch('/api/products')
-                .then(res => res.json())
-                .then(data => {
-                    allProducts = data;
-                    renderProducts(allProducts);
-                })
-                .catch(err => console.error("Помилка завантаження товарів:", err));
+        function loadData() {
+            Promise.all([
+                fetch('/api/categories').then(res => res.json()).catch(() => []),
+                fetch('/api/manufacturers').then(res => res.json()).catch(() => []),
+                fetch('/api/products').then(res => res.json()).catch(() => [])
+            ]).then(([categories, manufacturers, products]) => {
+                allCategories = categories.map(c => ({...c, productCount: products.filter(p => p.categoryId == c.id).length}));
+                allManufacturers = manufacturers.map(m => ({...m, productCount: products.filter(p => p.manufacturerId == m.id).length}));
+                allProducts = products;
+
+                renderCheckboxes();
+                renderCategoryList();
+                renderManufacturerList();
+                renderProducts(allProducts);
+            });
         }
 
         function renderProducts(products) {
             const grid = document.getElementById('products-grid');
+            document.getElementById('product-count-label').innerText = `${products.length} од.`;
+
             if (products.length === 0) {
-                grid.innerHTML = '<div style="color: #999; padding: 20px; grid-column: 1/-1;">Товарів не знайдено.</div>';
+                grid.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400">Товарів не знайдено</div>';
                 return;
             }
 
             let html = '';
             products.forEach(p => {
-                let specsFormatted = '';
-                if (p.specs && Array.isArray(p.specs)) {
-                    specsFormatted = p.specs.map(s => `• <b>${s.name}:</b> ${s.value}`).join('<br>');
+                let specsText = 'Не вказано';
+                if (p.specs) {
+                    try {
+                        const parsed = typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs;
+                        if (Array.isArray(parsed)) {
+                            const vals = parsed.map(s => s.value).filter(Boolean);
+                            if (vals.length > 0) specsText = vals.join(' / ');
+                        } else if (typeof parsed === 'object') {
+                            const vals = Object.values(parsed).filter(Boolean);
+                            if (vals.length > 0) specsText = vals.join(' / ');
+                        }
+                    } catch(e) {}
                 }
 
-                const catLabel = p.categoryName || 'Товар';
-                const typeLabel = p.productType === 1 ? 'Built PC' : 'Component';
-                
                 const imageHtml = p.imageUrl 
-                    ? `<img src="${p.imageUrl}" alt="${p.name}">`
-                    : `<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`;
+                    ? `<img src="${p.imageUrl}" alt="${p.name}" class="h-full w-full object-contain p-2">`
+                    : `<div class="h-full w-full flex items-center justify-center bg-gray-50"><i class="fas fa-image text-gray-300 text-4xl"></i></div>`;
+                
+                const mfgName = allManufacturers.find(m => m.id == p.manufacturerId)?.name || 'Не вказано';
+                const currentStock = p.stockCount !== undefined && p.stockCount !== null && p.stockCount !== "" ? p.stockCount : 0;
 
                 html += `
-                <div class="product-card">
-                    <div class="product-image">
+                <div class="border border-gray-200 rounded-lg p-4 flex flex-col hover:shadow-md transition-shadow bg-white relative group">
+                    <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <button onclick="editProduct(${p.id})" class="bg-gray-50 hover:bg-gray-100 text-gray-500 w-8 h-8 rounded flex items-center justify-center transition-colors">
+                            <i class="fas fa-pen text-xs"></i>
+                        </button>
+                        <button onclick="deleteProduct(${p.id})" class="bg-gray-50 hover:bg-gray-100 text-gray-500 w-8 h-8 rounded flex items-center justify-center transition-colors">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="h-48 mb-4 rounded overflow-hidden flex items-center justify-center">
                         ${imageHtml}
                     </div>
-                    <div class="category-badge">${catLabel}</div>
-                    <div class="type-badge">${typeLabel}</div>
+
+                    <div class="text-[13px] text-st-purple font-medium mb-1">${mfgName}</div>
                     
-                    <a href="#" class="product-title">${p.name}</a>
-                    
-                    <div class="product-specs">${specsFormatted || 'Характеристики відсутні'}</div>
-                    
-                    <div class="product-stock" style="font-size: 12px; color: #666; margin-bottom: 10px;">
-                        <strong>На складі:</strong> ${p.stockCount || 0} шт.
+                    <div class="font-medium text-gray-900 text-base mb-2 leading-snug">
+                        ${p.name}
                     </div>
-                    
-                    <div class="product-price-row">
-                        <div class="price">${p.price} ₴</div>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="delete-btn" onclick="editProduct(${p.id})" title="Редагувати товар" style="background: #e3f2fd; color: #1976d2;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </button>
-                            <button class="delete-btn" onclick="deleteProduct(${p.id})" title="Видалити товар">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                                </svg>
-                            </button>
-                        </div>
+
+                    <div class="text-[13px] text-gray-600 mb-4 leading-relaxed">
+                        ${specsText}
                     </div>
-                </div>
-                `;
+
+                    <div class="mt-auto pt-3 border-t border-gray-100">
+                        <div class="text-2xl font-bold text-[#f84147] leading-none mb-2">${p.price} ₴</div>
+                        <div class="text-[13px] text-gray-500">Залишок: <span class="font-bold text-gray-900">${currentStock}</span> шт</div>
+                    </div>
+                </div>`;
             });
             grid.innerHTML = html;
         }
 
         function filterProducts() {
-            const searchInputElement = document.getElementById('searchInputTop');
-            const searchTerm = searchInputElement ? searchInputElement.value.toLowerCase().trim() : '';
-            
-            const checkedBrands = Array.from(document.querySelectorAll('.filter-brand:checked')).map(cb => cb.value.toLowerCase());
-            const checkedCats = Array.from(document.querySelectorAll('.filter-cat:checked')).map(cb => parseInt(cb.value));
-
-            const filtered = allProducts.filter(p => {
-                const nameMatches = p.name.toLowerCase().includes(searchTerm);
-                const brandMatches = checkedBrands.length === 0 || checkedBrands.some(brand => p.name.toLowerCase().includes(brand));
-                const catMatches = checkedCats.length === 0 || checkedCats.includes(p.categoryId);
-
-                return nameMatches && brandMatches && catMatches;
-            });
-
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(searchTerm));
             renderProducts(filtered);
         }
 
-        function deleteProduct(id) {
-            if(confirm('Ви впевнені, що хочете видалити цей товар?')) {
-                fetch('/api/products/' + id, {
-                    method: 'DELETE'
-                })
-                .then(response => {
-                    if (response.ok) {
-                        loadProducts();
-                    } else {
-                        alert('Помилка видалення товару');
-                    }
-                })
-                .catch(error => {
-                    console.error('Помилка:', error);
-                    alert('Сталася помилка при видаленні товару');
-                });
-            }
+        function getSelectedId(name) {
+            const el = document.querySelector(`input[name="${name}"]:checked`);
+            return el ? el.value : '';
         }
 
-        function validateForm() {
-            let isValid = true;
-            const pType = document.getElementById('productType');
-            const cat = document.getElementById('categoryId');
-            const name = document.getElementById('name');
-            const price = document.getElementById('price');
+        function validateProductForm() {
+            const name = document.getElementById('name').value.trim();
+            const price = parseFloat(document.getElementById('price').value);
+            const categoryId = getSelectedId('productCategory');
 
-            [pType, cat, name, price].forEach(el => el.classList.remove('error'));
-
-            if (!pType.value) { pType.classList.add('error'); isValid = false; }
-            if (!cat.value) { cat.classList.add('error'); isValid = false; }
-            if (!name.value.trim()) { name.classList.add('error'); isValid = false; }
-            if (!price.value || price.value <= 0) { price.classList.add('error'); isValid = false; }
-
-            return isValid;
+            if (!name) { alert('Введіть назву товару'); return false; }
+            if (!price || price <= 0) { alert('Введіть коректну ціну'); return false; }
+            if (!categoryId) { alert('Виберіть категорію'); return false; }
+            return true;
         }
-
-        document.querySelectorAll('.form-control').forEach(input => {
-            input.addEventListener('input', function() { this.classList.remove('error'); });
-        });
 
         async function addProduct() {
-            if (!validateForm()) return;
+            if (!validateProductForm()) return;
 
             const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerText = 'Завантаження...';
+            btn.disabled = true; btn.innerText = 'Завантаження...';
 
-            const productType = document.getElementById('productType').value;
-            const categoryId = document.getElementById('categoryId').value;
-            const nameInput = document.getElementById('name').value;
-            const priceInput = document.getElementById('price').value;
-            const imageInput = document.getElementById('imageInput').files[0];
+            const catId = getSelectedId('productCategory');
+            const mfgId = getSelectedId('productManufacturer');
+            const stockVal = document.getElementById('stockCount').value;
+            const initialVal = document.getElementById('initialQuantity').value;
+            
+            const formData = new FormData();
+            formData.append('productType', document.getElementById('productType').value);
+            formData.append('categoryId', catId || '');
+            formData.append('manufacturerId', mfgId || '');
+            formData.append('name', document.getElementById('name').value.trim());
+            formData.append('price', document.getElementById('price').value || 0);
+            formData.append('stockCount', stockVal !== '' ? stockVal : 0);
+            formData.append('initialQuantity', initialVal !== '' ? initialVal : 0);
 
             let specs = {};
-            const catInfo = categoryMapping[categoryId];
+            const catInfo = categoryMapping[catId];
             if (catInfo && specsSchema[catInfo.key]) {
                 specsSchema[catInfo.key].forEach(field => {
                     const el = document.getElementById(`spec_${field.id}`);
-                    if (el && el.value.trim()) {
-                        specs[field.label] = el.value.trim();
-                    }
+                    if (el && el.value.trim()) specs[field.label] = el.value.trim();
                 });
             }
-
-            const formData = new FormData();
-            formData.append('productType', productType);
-            formData.append('categoryId', categoryId);
-            formData.append('name', nameInput);
-            formData.append('price', priceInput);
-            formData.append('stockCount', document.getElementById('stockCount').value || 0);
-            formData.append('initialQuantity', document.getElementById('initialQuantity').value || 0);
             formData.append('specsJson', JSON.stringify(specs));
-            if (imageInput) formData.append('image', imageInput);
+
+            const img = document.getElementById('imageInput').files[0];
+            if (img) formData.append('image', img);
 
             try {
-                const response = await fetch('/api/products', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    resetForm();
-                    loadProducts();
-                } else {
-                    const errorText = await response.text();
-                    alert('ДЕТАЛІ ПОМИЛКИ БАЗИ ДАНИХ/СЕРВЕРА:\n' + errorText);
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Сталася мережева помилка.');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Додати до каталогу';
-            }
+                const response = await fetch('/api/products', { method: 'POST', body: formData });
+                if (response.ok) { resetForm(); loadData(); } 
+                else { alert('Помилка: ' + await response.text()); }
+            } catch (err) { alert('Сталася мережева помилка'); }
+            finally { btn.disabled = false; btn.innerText = 'Додати до каталогу'; }
         }
 
         async function updateProduct() {
-            if (!validateForm()) return;
+            if (!validateProductForm()) return;
 
             const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerText = 'Оновлення...';
+            btn.disabled = true; btn.innerText = 'Оновлення...';
 
-            const productId = document.getElementById('productId').value;
-            const productType = document.getElementById('productType').value;
-            const categoryId = document.getElementById('categoryId').value;
-            const nameInput = document.getElementById('name').value;
-            const priceInput = document.getElementById('price').value;
-            const imageInput = document.getElementById('imageInput').files[0];
+            const id = document.getElementById('productId').value;
+            const catId = getSelectedId('productCategory');
+            const mfgId = getSelectedId('productManufacturer');
+            const stockVal = document.getElementById('stockCount').value;
+            const initialVal = document.getElementById('initialQuantity').value;
+            
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('productType', document.getElementById('productType').value);
+            formData.append('categoryId', catId || '');
+            formData.append('manufacturerId', mfgId || '');
+            formData.append('name', document.getElementById('name').value.trim());
+            formData.append('price', document.getElementById('price').value);
+            formData.append('stockCount', stockVal);
+            formData.append('initialQuantity', initialVal);
 
             let specs = {};
-            const catInfo = categoryMapping[categoryId];
+            const catInfo = categoryMapping[catId];
             if (catInfo && specsSchema[catInfo.key]) {
                 specsSchema[catInfo.key].forEach(field => {
                     const el = document.getElementById(`spec_${field.id}`);
-                    if (el && el.value.trim()) {
-                        specs[field.label] = el.value.trim();
-                    }
+                    if (el && el.value.trim()) specs[field.label] = el.value.trim();
                 });
             }
-
-            const formData = new FormData();
-            formData.append('id', productId);
-            formData.append('productType', productType);
-            formData.append('categoryId', categoryId);
-            formData.append('name', nameInput);
-            formData.append('price', priceInput);
-            formData.append('stockCount', document.getElementById('stockCount').value || 0);
             formData.append('specsJson', JSON.stringify(specs));
-            if (imageInput) formData.append('image', imageInput);
+
+            const img = document.getElementById('imageInput').files[0];
+            if (img) formData.append('image', img);
 
             try {
-                const response = await fetch('/api/products/' + productId, {
-                    method: 'PUT',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    resetForm();
-                    loadProducts();
-                } else {
-                    const errorText = await response.text();
-                    alert('ДЕТАЛІ ПОМИЛКИ БАЗИ ДАНИХ/СЕРВЕРА:\n' + errorText);
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Сталася мережева помилка.');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Додати до каталогу';
-            }
+                const response = await fetch('/api/products/' + id, { method: 'PUT', body: formData });
+                if (response.ok) { resetForm(); loadData(); } 
+                else { alert('Помилка: ' + await response.text()); }
+            } catch (err) { alert('Сталася мережева помилка'); }
+            finally { btn.disabled = false; btn.innerText = 'Додати до каталогу'; }
         }
 
-        function resetForm() {
-            document.getElementById('productId').value = '';
-            document.getElementById('name').value = '';
-            document.getElementById('price').value = '';
-            document.getElementById('stockCount').value = '';
-            document.getElementById('initialQuantity').value = '';
-            document.getElementById('categoryId').value = '';
-            document.getElementById('productType').value = '0';
-            document.getElementById('imageInput').value = '';
-            document.getElementById('imagePreview').style.display = 'none';
-            document.getElementById('uploadPlaceholder').style.display = 'block';
-            document.getElementById('dynamicSection').style.display = 'none';
-            document.getElementById('dynamicGrid').innerHTML = '';
-            document.getElementById('submitBtn').innerText = 'Додати до каталогу';
-            document.getElementById('submitBtn').onclick = addProduct;
-            document.getElementById('cancelBtn').style.display = 'none';
+        function deleteProduct(id) {
+            if(confirm('Видалити цей товар?')) {
+                fetch('/api/products/' + id, { method: 'DELETE' })
+                .then(r => r.ok ? loadData() : alert('Помилка'))
+                .catch(() => alert('Помилка видалення'));
+            }
         }
 
         function editProduct(id) {
-            const product = allProducts.find(p => p.id === id);
+            const product = allProducts.find(p => p.id == id);
             if (!product) return;
 
+            resetForm(); 
+
             document.getElementById('productId').value = product.id;
-            document.getElementById('name').value = product.name;
-            document.getElementById('price').value = product.price;
-            document.getElementById('stockCount').value = product.stockCount || 0;
-            document.getElementById('categoryId').value = product.categoryId;
-            document.getElementById('productType').value = product.productType;
+            document.getElementById('productType').value = product.productType || 0;
+            document.getElementById('name').value = product.name || '';
+            document.getElementById('price').value = product.price || '';
+            document.getElementById('stockCount').value = product.stockCount !== undefined && product.stockCount !== null ? product.stockCount : '';
+            document.getElementById('initialQuantity').value = product.initialQuantity !== undefined && product.initialQuantity !== null ? product.initialQuantity : '';
             
-            if (product.imageUrl) {
-                document.getElementById('imagePreview').src = product.imageUrl;
-                document.getElementById('imagePreview').style.display = 'block';
-                document.getElementById('uploadPlaceholder').style.display = 'none';
+            if (product.categoryId) {
+                document.querySelectorAll('input[name="productCategory"]').forEach(cb => {
+                    if (cb.value == product.categoryId) {
+                        cb.checked = true;
+                    }
+                });
+                renderDynamicFields(product.categoryId);
             }
 
-            renderDynamicFields();
-            
-            // Fill specifications
-            const catInfo = categoryMapping[product.categoryId];
-            if (catInfo && specsSchema[catInfo.key] && product.specs) {
-                specsSchema[catInfo.key].forEach(field => {
-                    const el = document.getElementById(`spec_${field.id}`);
-                    if (el) {
-                        const spec = product.specs.find(s => s.name === field.label);
-                        if (spec) {
-                            el.value = spec.value;
-                        }
+            if (product.manufacturerId) {
+                document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => {
+                    if (cb.value == product.manufacturerId) {
+                        cb.checked = true;
                     }
                 });
             }
 
-            const btn = document.getElementById('submitBtn');
-            btn.innerText = 'Оновити товар';
-            btn.onclick = updateProduct;
-            document.getElementById('cancelBtn').style.display = 'inline-block';
+            if (product.imageUrl) {
+                document.getElementById('imagePreview').src = product.imageUrl;
+                document.getElementById('imagePreview').classList.remove('hidden');
+                document.getElementById('uploadPlaceholder').classList.add('hidden');
+            }
+            
+            const catInfo = categoryMapping[product.categoryId];
+            if (catInfo && specsSchema[catInfo.key] && product.specs) {
+                let parsedSpecs = {};
+                try {
+                    const parsed = typeof product.specs === 'string' ? JSON.parse(product.specs) : product.specs;
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(s => parsedSpecs[s.name] = s.value);
+                    } else if (typeof parsed === 'object') {
+                        parsedSpecs = parsed;
+                    }
+                } catch(e) {}
+
+                specsSchema[catInfo.key].forEach(field => {
+                    const el = document.getElementById(`spec_${field.id}`);
+                    if (el) {
+                        el.value = parsedSpecs[field.label] || '';
+                    }
+                });
+            }
+
+            document.getElementById('form-title').innerText = 'Редагувати товар';
+            document.getElementById('submitBtn').innerText = 'Зберегти зміни';
+            document.getElementById('submitBtn').onclick = updateProduct;
+            document.getElementById('cancelBtn').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        loadProducts();
+        function resetForm() {
+            document.getElementById('product-form').reset();
+            document.getElementById('productId').value = '';
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('uploadPlaceholder').classList.remove('hidden');
+            document.getElementById('dynamicSection').classList.add('hidden');
+            document.getElementById('dynamicGrid').innerHTML = '';
+            
+            document.querySelectorAll('input[name="productCategory"]').forEach(cb => cb.checked = false);
+            document.querySelectorAll('input[name="productManufacturer"]').forEach(cb => cb.checked = false);
+
+            // Clear manufacturer form fields that might be auto-filled
+            document.getElementById('manufacturerNameInput').value = '';
+            document.getElementById('manufacturerDescInput').value = '';
+
+            document.getElementById('form-title').innerText = 'Додати товар';
+            document.getElementById('submitBtn').innerText = 'Додати до каталогу';
+            document.getElementById('submitBtn').onclick = addProduct;
+            document.getElementById('cancelBtn').classList.add('hidden');
+        }
+
+        function renderCategoryList() {
+            const list = document.getElementById('categories-list');
+            if(allCategories.length === 0) { list.innerHTML = '<div class="text-gray-400 italic">Пусто</div>'; return; }
+            list.innerHTML = allCategories.map(cat => `
+                <div class="flex justify-between items-center py-1.5 border-b border-gray-50 group">
+                    <div><span class="font-medium text-gray-700">${cat.name}</span> <span class="text-gray-400 text-xs ml-1">(${cat.productCount})</span></div>
+                    <div class="opacity-0 group-hover:opacity-100 flex gap-1">
+                        <button onclick="editCategory(${cat.id})" class="text-gray-400 hover:text-st-purple"><i class="fas fa-pen text-xs"></i></button>
+                        <button onclick="deleteCategory(${cat.id})" class="text-gray-400 hover:text-red-500 ml-1"><i class="fas fa-trash text-xs"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addCategory() {
+            const name = document.getElementById('categoryNameInput').value.trim();
+            if(!name) return;
+            const fd = new FormData(); fd.append('name', name);
+            try {
+                await fetch('/api/categories', {method: 'POST', body: fd});
+                resetCategoryForm(); loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        function editCategory(id) {
+            const cat = allCategories.find(c => c.id == id);
+            if(!cat) return;
+            document.getElementById('editCategoryId').value = cat.id;
+            document.getElementById('categoryNameInput').value = cat.name;
+            document.getElementById('categorySubmitBtn').innerText = 'Оновити';
+            document.getElementById('categorySubmitBtn').onclick = updateCategory;
+            document.getElementById('categoryCancelBtn').classList.remove('hidden');
+        }
+
+        async function updateCategory() {
+            const id = document.getElementById('editCategoryId').value;
+            const name = document.getElementById('categoryNameInput').value.trim();
+            if(!name) return;
+            const fd = new FormData(); fd.append('name', name);
+            try {
+                await fetch('/api/categories/'+id, {method: 'PUT', body: fd});
+                resetCategoryForm(); loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        function deleteCategory(id) {
+            const cat = allCategories.find(c => c.id == id);
+            if(cat && cat.productCount > 0) { alert('Неможливо видалити, є товари.'); return; }
+            if(confirm('Видалити?')) fetch('/api/categories/'+id, {method:'DELETE'}).then(()=>loadData());
+        }
+
+        function resetCategoryForm() {
+            document.getElementById('category-form').reset();
+            document.getElementById('editCategoryId').value = '';
+            document.getElementById('categorySubmitBtn').innerText = 'Зберегти';
+            document.getElementById('categorySubmitBtn').onclick = addCategory;
+            document.getElementById('categoryCancelBtn').classList.add('hidden');
+        }
+
+        function renderManufacturerList() {
+            const list = document.getElementById('manufacturers-list');
+            if(allManufacturers.length === 0) { list.innerHTML = '<div class="text-gray-400 italic">Пусто</div>'; return; }
+            list.innerHTML = allManufacturers.map(mfg => `
+                <div class="flex justify-between items-center py-1.5 border-b border-gray-50 group">
+                    <div>
+                        <div class="font-medium text-gray-700">${mfg.name} <span class="text-gray-400 text-xs ml-1">(${mfg.productCount})</span></div>
+                    </div>
+                    <div class="opacity-0 group-hover:opacity-100 flex gap-1">
+                        <button onclick="editManufacturer(${mfg.id})" class="text-gray-400 hover:text-st-purple"><i class="fas fa-pen text-xs"></i></button>
+                        <button onclick="deleteManufacturer(${mfg.id})" class="text-gray-400 hover:text-red-500 ml-1"><i class="fas fa-trash text-xs"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addManufacturer() {
+            const name = document.getElementById('manufacturerNameInput').value.trim();
+            if(!name) return;
+            const fd = new FormData(); 
+            fd.append('name', name);
+            fd.append('description', document.getElementById('manufacturerDescInput').value.trim());
+            try {
+                await fetch('/api/manufacturers', {method: 'POST', body: fd});
+                resetManufacturerForm(); loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        function editManufacturer(id) {
+            const mfg = allManufacturers.find(m => m.id == id);
+            if(!mfg) return;
+            document.getElementById('editManufacturerId').value = mfg.id;
+            document.getElementById('manufacturerNameInput').value = mfg.name;
+            document.getElementById('manufacturerDescInput').value = mfg.description || '';
+            document.getElementById('manufacturerSubmitBtn').innerText = 'Оновити';
+            document.getElementById('manufacturerSubmitBtn').onclick = updateManufacturer;
+            document.getElementById('manufacturerCancelBtn').classList.remove('hidden');
+        }
+
+        async function updateManufacturer() {
+            const id = document.getElementById('editManufacturerId').value;
+            const name = document.getElementById('manufacturerNameInput').value.trim();
+            if(!name) return;
+            const fd = new FormData(); 
+            fd.append('name', name);
+            fd.append('description', document.getElementById('manufacturerDescInput').value.trim());
+            try {
+                await fetch('/api/manufacturers/'+id, {method: 'PUT', body: fd});
+                resetManufacturerForm(); loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        function deleteManufacturer(id) {
+            const mfg = allManufacturers.find(m => m.id == id);
+            if(mfg && mfg.productCount > 0) { alert('Неможливо видалити, є товари.'); return; }
+            if(confirm('Видалити?')) fetch('/api/manufacturers/'+id, {method:'DELETE'}).then(()=>loadData());
+        }
+
+        function resetManufacturerForm() {
+            document.getElementById('manufacturer-form').reset();
+            document.getElementById('editManufacturerId').value = '';
+            document.getElementById('manufacturerSubmitBtn').innerText = 'Зберегти виробника';
+            document.getElementById('manufacturerSubmitBtn').onclick = addManufacturer;
+            document.getElementById('manufacturerCancelBtn').classList.add('hidden');
+        }
     </script>
 </body>
 </html>
