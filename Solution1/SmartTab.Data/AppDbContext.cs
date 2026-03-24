@@ -28,6 +28,8 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        DataSeeder.SeedData(modelBuilder);
+
         modelBuilder.Entity<User>()
         .HasOne(u => u.Role)
         .WithMany(r => r.Users)

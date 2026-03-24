@@ -120,5 +120,76 @@ namespace SmartTab.UI.Controllers
             }
             return Ok();
         }
+
+        [HttpPut("api/products/{id}")]
+        public async Task<IActionResult> UpdateProduct(int id, [FromForm] string name, [FromForm] decimal price, [FromForm] int categoryId, [FromForm] int productType, [FromForm] string specsJson, IFormFile? image)
+        {
+            try
+            {
+                var product = await _context.Products
+                    .Include(p => p.Specifications)
+                    .FirstOrDefaultAsync(p => p.Id == id);
+
+                if (product == null)
+                    return NotFound("Товар не знайдено");
+
+                if (string.IsNullOrWhiteSpace(name) || price <= 0 || categoryId <= 0)
+                    return BadRequest("Невалідні дані товару.");
+
+                product.Name = name.Trim();
+                product.Price = price;
+                product.CategoryId = categoryId;
+                product.Type = (ProductType)productType;
+
+                if (image != null && image.Length > 0)
+                {
+                    // Delete old image
+                    if (!string.IsNullOrEmpty(product.ImageUrl))
+                    {
+                        var oldImagePath = Path.Combine(_environment.WebRootPath, product.ImageUrl.TrimStart('/'));
+                        if (System.IO.File.Exists(oldImagePath))
+                        {
+                            System.IO.File.Delete(oldImagePath);
+                        }
+                    }
+
+                    string uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads");
+                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(image.FileName);
+                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await image.CopyToAsync(fileStream);
+                    }
+                    product.ImageUrl = "/uploads/" + uniqueFileName;
+                }
+
+                // Update specifications
+                product.Specifications.Clear();
+                if (!string.IsNullOrWhiteSpace(specsJson))
+                {
+                    var specsDict = JsonSerializer.Deserialize<Dictionary<string, string>>(specsJson);
+                    if (specsDict != null)
+                    {
+                        foreach (var spec in specsDict)
+                        {
+                            if (!string.IsNullOrWhiteSpace(spec.Value))
+                            {
+                                product.Specifications.Add(new ProductSpecification { Name = spec.Key, Value = spec.Value.Trim() });
+                            }
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Товар успішно оновлено" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+            }
+        }
     }
 }

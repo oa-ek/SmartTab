@@ -10,7 +10,7 @@ namespace SmartTab.Core
         public int Id { get; set; }
         public DateTime OrderDate { get; set; } = DateTime.Now;
         public decimal Price { get; set; }
-        public string Status { get; set; }
+        public string? Status { get; set; }
 
         public int UserId { get; set; }
         public User User { get; set; } = null!;
