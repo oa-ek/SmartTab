@@ -110,8 +110,9 @@
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-user text-gray-400 text-sm"></i>
                             </div>
-                            <input id="name" name="name" type="text" required placeholder="Іванов Іван" class="input-field pl-10">
+                            <input id="name" name="name" type="text" required placeholder="Іванов Іван" maxlength="60" class="input-field pl-10" oninput="validateName(this)">
                         </div>
+                        <p id="name-error" class="text-xs text-red-500 mt-1 hidden">Ім'я може містити лише літери, пробіл, апостроф та дефіс</p>
                     </div>
 
                     <div>
@@ -122,7 +123,7 @@
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-envelope text-gray-400 text-sm"></i>
                             </div>
-                            <input id="email" name="email" type="email" autocomplete="email" required placeholder="email@example.com" class="input-field pl-10">
+                            <input id="email" name="email" type="email" autocomplete="email" required placeholder="email@example.com" maxlength="100" class="input-field pl-10">
                         </div>
                     </div>
 
@@ -134,8 +135,9 @@
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-phone text-gray-400 text-sm"></i>
                             </div>
-                            <input id="phone" name="phone" type="tel" required placeholder="+38 (000) 000-00-00" class="input-field pl-10">
+                            <input id="phone" name="phone" type="tel" required placeholder="+380 (XX) XXX-XX-XX" maxlength="19" class="input-field pl-10" oninput="phoneMask(this)" onkeydown="phoneKeydown(event, this)">
                         </div>
+                        <p id="phone-error" class="text-xs text-red-500 mt-1 hidden">Введіть номер у форматі +380 (XX) XXX-XX-XX</p>
                     </div>
 
                     <div>
@@ -146,7 +148,7 @@
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-lock text-gray-400 text-sm"></i>
                             </div>
-                            <input id="password" name="password" type="password" required placeholder="••••••••" class="input-field pl-10" oninput="checkPasswords()">
+                            <input id="password" name="password" type="password" required placeholder="••••••••" maxlength="64" minlength="6" class="input-field pl-10" oninput="checkPasswords()">
                             <button type="button" onclick="togglePassword('password')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                 <i class="fas fa-eye" id="eye-password"></i>
                             </button>
@@ -161,7 +163,7 @@
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-lock text-gray-400 text-sm"></i>
                             </div>
-                            <input id="confirm_password" name="confirm_password" type="password" required placeholder="••••••••" class="input-field pl-10" oninput="checkPasswords()">
+                            <input id="confirm_password" name="confirm_password" type="password" required placeholder="••••••••" maxlength="64" class="input-field pl-10" oninput="checkPasswords()">
                             <button type="button" onclick="togglePassword('confirm_password')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                 <i class="fas fa-eye" id="eye-confirm_password"></i>
                             </button>
@@ -185,32 +187,132 @@
                     </div>
                 </form>
 
-                <div class="mt-6">
-                    <div class="relative">
-                        <div class="absolute inset-0 flex items-center">
-                            <div class="w-full border-t border-gray-200"></div>
-                        </div>
-                        <div class="relative flex justify-center text-sm">
-                            <span class="px-2 bg-white text-gray-500">Або зареєструватись через</span>
-                        </div>
-                    </div>
-
-                    <div class="mt-6 grid grid-cols-2 gap-3">
-                        <button type="button" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-                            <i class="fab fa-google text-red-500 text-lg mr-2"></i>
-                            Google
-                        </button>
-                        <button type="button" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-                            <i class="fab fa-github text-gray-900 text-lg mr-2"></i>
-                            GitHub
-                        </button>
-                    </div>
-                </div>
             </div>
         </div>
     </main>
 
     <script>
+        // Валідація імені - тільки літери, пробіли, апостроф, дефіс
+        function validateName(input) {
+            const allowed = /^[а-яА-ЯіІїЇєЄґҐa-zA-Z\s'\-']+$/u;
+            const err = document.getElementById('name-error');
+            // Видаляємо заборонені символи одразу при введенні
+            input.value = input.value.replace(/[^а-яА-ЯіІїЇєЄґҐa-zA-Z\s'\-']/gu, '');
+            if (input.value.length > 0 && !allowed.test(input.value)) {
+                err.classList.remove('hidden');
+                input.classList.add('border-red-400');
+            } else {
+                err.classList.add('hidden');
+                input.classList.remove('border-red-400');
+            }
+        }
+
+        // Маска телефону: +380 (XX) XXX-XX-XX
+        function phoneMask(input) {
+            let digits = input.value.replace(/\D/g, '');
+
+            // Завжди починаємо з 380
+            if (digits.startsWith('380')) {
+                // вже правильно
+            } else if (digits.startsWith('38')) {
+                digits = '380' + digits.substring(2);
+            } else if (digits.startsWith('0')) {
+                digits = '380' + digits.substring(1);
+            } else {
+                digits = '380' + digits.replace(/^3?8?0?/, '');
+            }
+
+            // Обмежуємо до 12 цифр (380 + 9 цифр номеру)
+            digits = digits.substring(0, 12);
+
+            // Формат: +380 (XX) XXX-XX-XX
+            let formatted = '+380';
+            if (digits.length > 3) {
+                formatted += ' (' + digits.substring(3, Math.min(5, digits.length));
+                if (digits.length >= 5) {
+                    formatted += ') ' + digits.substring(5, Math.min(8, digits.length));
+                    if (digits.length >= 8) {
+                        formatted += '-' + digits.substring(8, Math.min(10, digits.length));
+                        if (digits.length >= 10) {
+                            formatted += '-' + digits.substring(10, 12);
+                        }
+                    }
+                }
+            }
+
+            input.value = formatted;
+
+            // Показуємо помилку тільки якщо поле не порожнє і неповне
+            const err = document.getElementById('phone-error');
+            const digitsOnly = input.value.replace(/\D/g, '');
+            if (input.value.length > 0 && digitsOnly.length < 12) {
+                err.classList.remove('hidden');
+                input.classList.add('border-red-400');
+            } else {
+                err.classList.add('hidden');
+                input.classList.remove('border-red-400');
+            }
+        }
+
+        function phoneKeydown(event, input) {
+            // Дозволяємо: Tab, стрілки, Ctrl+A/C/V/X
+            const nav = [9, 13, 37, 38, 39, 40];
+            if (nav.includes(event.keyCode)) return;
+            if ((event.ctrlKey || event.metaKey) && [65, 67, 86, 88].includes(event.keyCode)) return;
+
+            // Backspace - вручну видаляємо останню ЦИФРУ, ігноруючи форматні символи
+            if (event.keyCode === 8) {
+                event.preventDefault();
+                let digits = input.value.replace(/\D/g, '');
+                if (digits.length <= 3) {
+                    // Залишилось тільки "380" або менше — повністю очищаємо
+                    input.value = '';
+                    document.getElementById('phone-error').classList.add('hidden');
+                    input.classList.remove('border-red-400');
+                } else {
+                    // Видаляємо останню цифру і переформатовуємо
+                    digits = digits.substring(0, digits.length - 1);
+                    let formatted = '+380';
+                    if (digits.length > 3) {
+                        formatted += ' (' + digits.substring(3, Math.min(5, digits.length));
+                        if (digits.length >= 5) {
+                            formatted += ') ' + digits.substring(5, Math.min(8, digits.length));
+                            if (digits.length >= 8) {
+                                formatted += '-' + digits.substring(8, Math.min(10, digits.length));
+                                if (digits.length >= 10) {
+                                    formatted += '-' + digits.substring(10, 12);
+                                }
+                            }
+                        }
+                    }
+                    input.value = formatted;
+                    const err = document.getElementById('phone-error');
+                    if (digits.length < 12) {
+                        err.classList.remove('hidden');
+                        input.classList.add('border-red-400');
+                    } else {
+                        err.classList.add('hidden');
+                        input.classList.remove('border-red-400');
+                    }
+                }
+                return;
+            }
+
+            // Delete — очищаємо поле повністю
+            if (event.keyCode === 46) {
+                event.preventDefault();
+                input.value = '';
+                document.getElementById('phone-error').classList.add('hidden');
+                input.classList.remove('border-red-400');
+                return;
+            }
+
+            // Блокуємо все крім цифр
+            if (event.key < '0' || event.key > '9') {
+                event.preventDefault();
+            }
+        }
+
         function togglePassword(inputId) {
             const input = document.getElementById(inputId);
             const icon = document.getElementById('eye-' + inputId);

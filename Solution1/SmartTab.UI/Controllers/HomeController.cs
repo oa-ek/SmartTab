@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartTab.Core;
@@ -29,6 +30,7 @@ namespace SmartTab.UI.Controllers
 
         public IActionResult Index() => View();
         public IActionResult Privacy() => View();
+        [Authorize(Roles = "Admin")]
         public IActionResult Admin() => View();
 
         [HttpGet("api/inventory/{productId}")]
