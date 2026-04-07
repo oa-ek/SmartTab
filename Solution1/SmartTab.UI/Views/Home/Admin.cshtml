@@ -465,7 +465,9 @@
                     'gpu': 'відеокарт', 
                     'motherboard': 'материнськ', 
                     'ram': 'оперативна пам', 
-                    'storage': 'накопичувач', 
+                    'storage': 'накопичувач',
+                    'ssd': 'ssd',
+                    'hdd': 'hdd',
                     'psu': 'блок',
                     'cooler': 'охолодження',
                     'case': 'корпус'
@@ -476,7 +478,25 @@
                     let optionsHtml = `<option value="">Оберіть ${field.label}...</option>`;
                     
                     if (searchWord) {
-                        const targetCat = allCategories.find(c => c.name.toLowerCase().includes(searchWord));
+                        let targetCat = null;
+                        
+                        // Спеціальна логіка для накопичувачів
+                        if (field.id === 'storage') {
+                            // Спочатку шукаємо SSD, потім HDD
+                            targetCat = allCategories.find(c => 
+                                c.name.toLowerCase().includes('ssd') && 
+                                c.name.toLowerCase().includes('накопичувач')
+                            );
+                            if (!targetCat) {
+                                targetCat = allCategories.find(c => 
+                                    c.name.toLowerCase().includes('hdd') && 
+                                    c.name.toLowerCase().includes('накопичувач')
+                                );
+                            }
+                        } else {
+                            targetCat = allCategories.find(c => c.name.toLowerCase().includes(searchWord));
+                        }
+                        
                         if (targetCat) {
                             const availableComponents = allProducts.filter(p => p.categoryId == targetCat.id);
                             availableComponents.forEach(p => {
