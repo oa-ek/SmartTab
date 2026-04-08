@@ -85,3 +85,29 @@ public class ProfileViewModel
     public string? RoleName { get; set; }
     public DateTime RegistrationDate { get; set; }
 }
+
+public class ForgotPasswordViewModel
+{
+    [Required(ErrorMessage = "Введіть email")]
+    [EmailAddress(ErrorMessage = "Невірний формат email")]
+    [Display(Name = "Електронна пошта")]
+    public string Email { get; set; } = null!;
+}
+
+public class ResetPasswordViewModel
+{
+    [Required]
+    public string Token { get; set; } = null!;
+
+    [Required(ErrorMessage = "Введіть новий пароль")]
+    [MinLength(6, ErrorMessage = "Пароль має бути не менше 6 символів")]
+    [Display(Name = "Новий пароль")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = null!;
+
+    [Required(ErrorMessage = "Підтвердіть пароль")]
+    [Compare("Password", ErrorMessage = "Паролі не збігаються")]
+    [Display(Name = "Підтвердження паролю")]
+    [DataType(DataType.Password)]
+    public string ConfirmPassword { get; set; } = null!;
+}

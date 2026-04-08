@@ -9,16 +9,19 @@ using Microsoft.EntityFrameworkCore;
 using SmartTab.Core;
 using SmartTab.Data;
 using SmartTab.UI.Models;
+using SmartTab.UI.Services;
 
 namespace SmartTab.UI.Controllers;
 
 public class AccountController : Controller
 {
     private readonly AppDbContext _context;
+    private readonly EmailService _emailService;
 
-    public AccountController(AppDbContext context)
+    public AccountController(AppDbContext context, EmailService emailService)
     {
         _context = context;
+        _emailService = emailService;
     }
 
     // GET: /Account/Register
@@ -216,6 +219,107 @@ public class AccountController : Controller
 
         TempData["SuccessMessage"] = "Профіль успішно оновлено";
         return RedirectToAction(nameof(Profile));
+    }
+
+    // GET: /Account/ForgotPassword
+    [HttpGet]
+    public IActionResult ForgotPassword()
+    {
+        if (User.Identity?.IsAuthenticated == true)
+            return RedirectToAction("Index", "Home");
+
+        return View();
+    }
+
+    // POST: /Account/ForgotPassword
+    [HttpPost]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return Json(new { success = false, error = "Введіть коректний email" });
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
+
+            if (user == null)
+            {
+                // Не розкриваємо чи існує email — завжди показуємо успіх
+                return Json(new { success = true });
+            }
+
+            // Генеруємо токен
+            var token = Guid.NewGuid().ToString("N");
+            user.ResetToken = token;
+            user.ResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+            await _context.SaveChangesAsync();
+
+            // Формуємо посилання
+            var resetLink = Url.Action("ResetPassword", "Account",
+                new { token }, Request.Scheme);
+
+            // Надсилаємо email
+            await _emailService.SendPasswordResetEmailAsync(user.Email, resetLink!);
+
+            return Json(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, error = $"Помилка надсилання листа: {ex.Message}" });
+        }
+    }
+
+    // GET: /Account/ResetPassword?token=xxx
+    [HttpGet]
+    public async Task<IActionResult> ResetPassword(string token)
+    {
+        if (string.IsNullOrEmpty(token))
+            return RedirectToAction("Login");
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.ResetToken == token && u.ResetTokenExpiry > DateTime.UtcNow);
+
+        if (user == null)
+        {
+            TempData["ResetError"] = "Посилання недійсне або термін його дії закінчився.";
+            return RedirectToAction("ForgotPassword");
+        }
+
+        return View(new ResetPasswordViewModel { Token = token });
+    }
+
+    // POST: /Account/ResetPassword
+    [HttpPost]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value!.Errors.Count > 0)
+                    .ToDictionary(k => k.Key, v => v.Value!.Errors.First().ErrorMessage);
+                return Json(new { success = false, errors });
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.ResetToken == model.Token && u.ResetTokenExpiry > DateTime.UtcNow);
+
+            if (user == null)
+                return Json(new { success = false, error = "Посилання недійсне або термін його дії закінчився." });
+
+            user.Password = HashPassword(model.Password);
+            user.ResetToken = null;
+            user.ResetTokenExpiry = null;
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, error = $"Помилка: {ex.Message}" });
+        }
     }
 
     // GET: /Account/AccessDenied

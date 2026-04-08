@@ -15,6 +15,9 @@ public class User
     public string Password { get; set; } = null!;
     public bool IsActive { get; set; } = true;
 
+    public string? ResetToken { get; set; }
+    public DateTime? ResetTokenExpiry { get; set; }
+
     public int RoleId { get; set; }
     public Role Role { get; set; } = null!;
     public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;

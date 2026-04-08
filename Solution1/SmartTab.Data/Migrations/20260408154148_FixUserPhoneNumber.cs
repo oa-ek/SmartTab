@@ -8,20 +8,11 @@ namespace SmartTab.Data.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Додаємо колонку PhoneNumber в таблицю Users
-            migrationBuilder.AddColumn<string>(
-                name: "PhoneNumber",
-                table: "Users",
-                type: "nvarchar(max)",
-                nullable: true); // true, оскільки телефон не є обов'язковим полем
+            // PhoneNumber та IsActive вже існують в БД (додані вручну раніше)
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Видаляємо колонку, якщо буде потрібно відкотити міграцію назад
-            migrationBuilder.DropColumn(
-                name: "PhoneNumber",
-                table: "Users");
         }
     }
 }
