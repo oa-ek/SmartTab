@@ -35,44 +35,52 @@ public class AccountController : Controller
     [HttpPost]
     public async Task<IActionResult> Register(RegisterViewModel model)
     {
-        if (!ModelState.IsValid)
+        try
         {
-            var errors = ModelState
-                .Where(x => x.Value!.Errors.Count > 0)
-                .ToDictionary(k => k.Key, v => v.Value!.Errors.First().ErrorMessage);
-            return Json(new { success = false, errors });
+            if (!ModelState.IsValid)
+            {
+                var validationErrors = ModelState
+                    .Where(x => x.Value!.Errors.Count > 0)
+                    .ToDictionary(k => k.Key, v => v.Value!.Errors.First().ErrorMessage);
+                return Json(new { success = false, errors = validationErrors });
+            }
+
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
+
+            if (existingUser != null)
+                return Json(new { success = false, errors = new { Email = "Цей email вже зареєстрований" } });
+
+            var nameParts = model.FullName.Trim().Split(' ', 2);
+            var lastName = nameParts.Length > 1 ? nameParts[0] : "";
+            var firstName = nameParts.Length > 1 ? nameParts[1] : nameParts[0];
+
+            var isFirstUser = !await _context.Users.AnyAsync();
+
+            var user = new User
+            {
+                FirstName = firstName,
+                LastName = lastName,
+                Email = model.Email.ToLower().Trim(),
+                PhoneNumber = model.PhoneNumber?.Trim(),
+                Password = HashPassword(model.Password),
+                RoleId = isFirstUser ? 1 : 2,
+                IsActive = true,
+                RegistrationDate = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            await SignInUser(user, isFirstUser ? "Admin" : "Customer", isPersistent: false);
+
+            return Json(new { success = true, redirectUrl = "/" });
         }
-
-        var existingUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
-
-        if (existingUser != null)
-            return Json(new { success = false, errors = new { Email = "Цей email вже зареєстрований" } });
-
-        var nameParts = model.FullName.Trim().Split(' ', 2);
-        var lastName = nameParts.Length > 1 ? nameParts[0] : "";
-        var firstName = nameParts.Length > 1 ? nameParts[1] : nameParts[0];
-
-        var isFirstUser = !await _context.Users.AnyAsync();
-
-        var user = new User
+        catch (Exception ex)
         {
-            FirstName = firstName,
-            LastName = lastName,
-            Email = model.Email.ToLower().Trim(),
-            PhoneNumber = model.PhoneNumber?.Trim(),
-            Password = HashPassword(model.Password),
-            RoleId = isFirstUser ? 1 : 2,
-            IsActive = true,
-            RegistrationDate = DateTime.UtcNow
-        };
-
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-
-        await SignInUser(user, isFirstUser ? "Admin" : "Customer", isPersistent: false);
-
-        return Json(new { success = true, redirectUrl = "/" });
+            // У разі падіння сервера повертаємо текст помилки на фронтенд
+            return Json(new { success = false, error = $"[DEBUG ПОМИЛКА]: {ex.InnerException?.Message ?? ex.Message}" });
+        }
     }
 
     // GET: /Account/Login
@@ -159,7 +167,6 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Profile(ProfileViewModel model)
     {
-        // Видаляємо помилки для полів паролю якщо вони не заповнені
         if (string.IsNullOrEmpty(model.NewPassword))
         {
             ModelState.Remove("NewPassword");
@@ -178,7 +185,6 @@ public class AccountController : Controller
         if (user == null)
             return NotFound();
 
-        // Перевірка email на унікальність
         var emailTaken = await _context.Users
             .AnyAsync(u => u.Email.ToLower() == model.Email.ToLower() && u.Id != userId);
 
@@ -188,7 +194,6 @@ public class AccountController : Controller
             return View(model);
         }
 
-        // Оновлення пароля
         if (!string.IsNullOrEmpty(model.NewPassword))
         {
             if (string.IsNullOrEmpty(model.CurrentPassword) || !VerifyPassword(model.CurrentPassword, user.Password))
@@ -207,7 +212,6 @@ public class AccountController : Controller
 
         await _context.SaveChangesAsync();
 
-        // Оновлюємо cookie з новими даними
         await SignInUser(user, user.Role.Name, isPersistent: false);
 
         TempData["SuccessMessage"] = "Профіль успішно оновлено";

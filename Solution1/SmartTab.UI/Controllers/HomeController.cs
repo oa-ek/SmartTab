@@ -30,8 +30,40 @@ namespace SmartTab.UI.Controllers
 
         public IActionResult Index() => View();
         public IActionResult Privacy() => View();
+
+        // Метод для відкриття сторінки товару
+        public IActionResult ProductPage(int id) => View();
+
         [Authorize(Roles = "Admin")]
         public IActionResult Admin() => View();
+
+        // API для отримання одного товару за ID
+        [HttpGet("api/products/{id}")]
+        public async Task<IActionResult> GetProduct(int id)
+        {
+            var product = await _context.Products
+                .Include(p => p.Specifications)
+                .Include(p => p.Category)
+                .Include(p => p.Manufacturer)
+                .Select(p => new {
+                    p.Id,
+                    p.Name,
+                    p.Price,
+                    p.ImageUrl,
+                    p.StockCount,
+                    CategoryId = p.CategoryId,
+                    ManufacturerId = p.ManufacturerId,
+                    ProductType = (int)p.Type,
+                    CategoryName = p.Category != null ? p.Category.Name : "Невідомо",
+                    ManufacturerName = p.Manufacturer != null ? p.Manufacturer.Name : "Не вказано",
+                    Specs = p.Specifications.Select(s => new { s.Name, s.Value })
+                })
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null) return NotFound();
+
+            return Ok(product);
+        }
 
         [HttpGet("api/inventory/{productId}")]
         public async Task<IActionResult> GetInventoryItems(int productId)
@@ -286,7 +318,7 @@ namespace SmartTab.UI.Controllers
                     CategoryId = categoryId,
                     ManufacturerId = manufacturerId > 0 ? manufacturerId : null,
                     Type = (ProductType)productType,
-                    StockCount = stockCount, // Беремо значення, яке вписав адмін
+                    StockCount = stockCount,
                     InitialQuantity = initialQuantity
                 };
 
@@ -409,7 +441,7 @@ namespace SmartTab.UI.Controllers
                 }
 
                 _context.InventoryItems.RemoveRange(product.InventoryItems);
-                _context.Set<ProductSpecification>().RemoveRange(product.Specifications); // Безпечне видалення
+                _context.Set<ProductSpecification>().RemoveRange(product.Specifications);
                 _context.Products.Remove(product);
                 await _context.SaveChangesAsync();
 
@@ -473,7 +505,6 @@ namespace SmartTab.UI.Controllers
                     product.ImageUrl = "/uploads/" + uniqueFileName;
                 }
 
-                // Безпечне видалення старих специфікацій
                 _context.RemoveRange(product.Specifications);
 
                 if (!string.IsNullOrWhiteSpace(specsJson))

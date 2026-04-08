@@ -467,7 +467,7 @@ namespace SmartTab.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Role");
+                    b.ToTable("Role", (string)null);
 
                     b.HasData(
                         new
@@ -528,6 +528,9 @@ namespace SmartTab.Data.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("RegistrationDate")

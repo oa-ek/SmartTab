@@ -12,8 +12,8 @@ using SmartTab.Data;
 namespace SmartTab.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260407202454_AddPhoneNumberToUser")]
-    partial class AddPhoneNumberToUser
+    [Migration("20260408154148_FixUserPhoneNumber")]
+    partial class FixUserPhoneNumber
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -470,7 +470,7 @@ namespace SmartTab.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Role");
+                    b.ToTable("Role", (string)null);
 
                     b.HasData(
                         new
@@ -531,6 +531,9 @@ namespace SmartTab.Data.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("RegistrationDate")
