@@ -31,8 +31,8 @@ namespace SmartTab.UI.Controllers
         public IActionResult Index() => View();
         public IActionResult Privacy() => View();
 
-        // Метод для відкриття сторінки товару
         public IActionResult ProductPage(int id) => View();
+        public IActionResult ConfigPC() => View();
 
         [Authorize(Roles = "Admin")]
         public IActionResult Admin() => View();
