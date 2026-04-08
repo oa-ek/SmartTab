@@ -491,7 +491,6 @@ namespace SmartTab.UI.Controllers
                     }
                 }
 
-                // Якщо адмін вписав нові серійники при оновленні товару
                 if (initialQuantity > 0)
                 {
                     var inventoryItems = new List<InventoryItem>();
@@ -506,7 +505,6 @@ namespace SmartTab.UI.Controllers
                     }
                     _context.InventoryItems.AddRange(inventoryItems);
 
-                    // Збільшуємо наявну кількість товару на складі
                     product.StockCount += initialQuantity;
                 }
 

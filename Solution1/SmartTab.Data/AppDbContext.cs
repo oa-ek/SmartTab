@@ -31,6 +31,8 @@ public class AppDbContext : DbContext
 
         DataSeeder.SeedData(modelBuilder);
 
+        modelBuilder.Entity<Role>().ToTable("Role");
+
         modelBuilder.Entity<User>()
         .HasOne(u => u.Role)
         .WithMany(r => r.Users)

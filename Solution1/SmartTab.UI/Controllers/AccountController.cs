@@ -28,31 +28,32 @@ public class AccountController : Controller
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("Index", "Home");
 
-        return View();
+        return RedirectToAction("Privacy", "Home");
     }
 
     // POST: /Account/Register
     [HttpPost]
-    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterViewModel model)
     {
         if (!ModelState.IsValid)
-            return View(model);
+        {
+            var errors = ModelState
+                .Where(x => x.Value!.Errors.Count > 0)
+                .ToDictionary(k => k.Key, v => v.Value!.Errors.First().ErrorMessage);
+            return Json(new { success = false, errors });
+        }
 
-        // Перевірка чи email вже використовується
         var existingUser = await _context.Users
             .FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
 
         if (existingUser != null)
-        {
-            ModelState.AddModelError("Email", "Цей email вже зареєстрований");
-            return View(model);
-        }
+            return Json(new { success = false, errors = new { Email = "Цей email вже зареєстрований" } });
 
-        // Розбиваємо FullName на FirstName/LastName
         var nameParts = model.FullName.Trim().Split(' ', 2);
         var lastName = nameParts.Length > 1 ? nameParts[0] : "";
         var firstName = nameParts.Length > 1 ? nameParts[1] : nameParts[0];
+
+        var isFirstUser = !await _context.Users.AnyAsync();
 
         var user = new User
         {
@@ -61,7 +62,7 @@ public class AccountController : Controller
             Email = model.Email.ToLower().Trim(),
             PhoneNumber = model.PhoneNumber?.Trim(),
             Password = HashPassword(model.Password),
-            RoleId = 2, // Customer
+            RoleId = isFirstUser ? 1 : 2,
             IsActive = true,
             RegistrationDate = DateTime.UtcNow
         };
@@ -69,10 +70,9 @@ public class AccountController : Controller
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        // Автоматичний вхід після реєстрації
-        await SignInUser(user, "Customer", isPersistent: false);
+        await SignInUser(user, isFirstUser ? "Admin" : "Customer", isPersistent: false);
 
-        return RedirectToAction("Index", "Home");
+        return Json(new { success = true, redirectUrl = "/" });
     }
 
     // GET: /Account/Login
@@ -88,34 +88,34 @@ public class AccountController : Controller
 
     // POST: /Account/Login
     [HttpPost]
-    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
     {
-        if (!ModelState.IsValid)
-            return View(model);
-
-        var user = await _context.Users
-            .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
-
-        if (user == null || !VerifyPassword(model.Password, user.Password))
+        try
         {
-            ModelState.AddModelError(string.Empty, "Невірний email або пароль");
-            return View(model);
-        }
+            if (!ModelState.IsValid)
+                return Json(new { success = false, error = "Заповніть всі поля коректно" });
 
-        if (!user.IsActive)
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
+
+            if (user == null || !VerifyPassword(model.Password, user.Password))
+                return Json(new { success = false, error = "Невірний email або пароль" });
+
+            if (!user.IsActive)
+                return Json(new { success = false, error = "Акаунт заблоковано. Зверніться до адміністратора." });
+
+            await SignInUser(user, user.Role.Name, isPersistent: model.RememberMe);
+
+            var redirect = (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                ? returnUrl : "/";
+
+            return Json(new { success = true, redirectUrl = redirect });
+        }
+        catch (Exception ex)
         {
-            ModelState.AddModelError(string.Empty, "Акаунт заблоковано. Зверніться до адміністратора.");
-            return View(model);
+            return Json(new { success = false, error = $"[DEBUG] {ex.GetType().Name}: {ex.Message}" });
         }
-
-        await SignInUser(user, user.Role.Name, isPersistent: model.RememberMe);
-
-        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-            return Redirect(returnUrl);
-
-        return RedirectToAction("Index", "Home");
     }
 
     // POST: /Account/Logout

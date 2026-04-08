@@ -1,0 +1,227 @@
+@model SmartTab.UI.Models.ProfileViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мій профіль - SmartTab Store</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --st-purple: #6f00ff; --st-purple-hover: #5b00d6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; }
+        .text-st-purple { color: var(--st-purple); }
+        .bg-st-purple { background-color: var(--st-purple); }
+        .hover\:bg-st-purple-hover:hover { background-color: var(--st-purple-hover); }
+        .input-field {
+            width: 100%; padding: 0.625rem 1rem;
+            border: 1px solid #d1d5db; border-radius: 0.5rem;
+            font-size: 0.875rem; outline: none; transition: all 0.2s;
+        }
+        .input-field:focus { border-color: var(--st-purple); box-shadow: 0 0 0 3px rgba(111,0,255,0.1); }
+        .input-field:disabled { background-color: #f9fafb; color: #6b7280; }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col min-h-screen">
+
+    <header class="bg-[#212121] border-b border-gray-900 text-white">
+        <div class="max-w-[1400px] mx-auto px-4 h-[70px] flex items-center justify-between">
+            <a href="/" class="flex items-center text-st-purple text-2xl font-bold tracking-tight">
+                <i class="fas fa-layer-group mr-2 text-2xl"></i>
+                <span>SmartTab</span>
+            </a>
+            <a href="/" class="text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> На головну
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-1 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-st-purple/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-st-purple/10 rounded-full blur-3xl"></div>
+
+        <div class="max-w-2xl mx-auto relative z-10">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-16 h-16 bg-st-purple/10 rounded-full flex items-center justify-center">
+                    <i class="fas fa-user text-st-purple text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold text-gray-900">@Model.LastName @Model.FirstName</h1>
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full @(Model.RoleName == "Admin" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600")">
+                        <i class="fas @(Model.RoleName == "Admin" ? "fa-shield-alt" : "fa-user") text-[10px]"></i>
+                        @Model.RoleName
+                    </span>
+                </div>
+            </div>
+
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="mb-6 flex items-center gap-3 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">
+                    <i class="fas fa-check-circle"></i>
+                    <span>@TempData["SuccessMessage"]</span>
+                </div>
+            }
+
+            <div class="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                    <h2 class="font-bold text-gray-800">Особисті дані</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Зареєстрований: @Model.RegistrationDate.ToString("dd.MM.yyyy")</p>
+                </div>
+
+                <form action="/Account/Profile" method="post" class="p-6 space-y-5">
+                    @Html.AntiForgeryToken()
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Прізвище</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-user text-gray-400 text-sm"></i>
+                                </div>
+                                <input name="LastName" value="@Model.LastName" type="text" required maxlength="50" class="input-field pl-10">
+                            </div>
+                            @if (ViewData.ModelState["LastName"]?.Errors.Count > 0)
+                            {
+                                <p class="text-xs text-red-500 mt-1">@ViewData.ModelState["LastName"]!.Errors[0].ErrorMessage</p>
+                            }
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ім'я</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-user text-gray-400 text-sm"></i>
+                                </div>
+                                <input name="FirstName" value="@Model.FirstName" type="text" required maxlength="50" class="input-field pl-10">
+                            </div>
+                            @if (ViewData.ModelState["FirstName"]?.Errors.Count > 0)
+                            {
+                                <p class="text-xs text-red-500 mt-1">@ViewData.ModelState["FirstName"]!.Errors[0].ErrorMessage</p>
+                            }
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Електронна пошта</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-envelope text-gray-400 text-sm"></i>
+                            </div>
+                            <input name="Email" value="@Model.Email" type="email" required maxlength="100" class="input-field pl-10">
+                        </div>
+                        @if (ViewData.ModelState["Email"]?.Errors.Count > 0)
+                        {
+                            <p class="text-xs text-red-500 mt-1">@ViewData.ModelState["Email"]!.Errors[0].ErrorMessage</p>
+                        }
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Номер телефону</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-phone text-gray-400 text-sm"></i>
+                            </div>
+                            <input name="PhoneNumber" value="@Model.PhoneNumber" type="tel" maxlength="19" placeholder="+380 (XX) XXX-XX-XX" class="input-field pl-10">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-100">
+                        <h3 class="font-bold text-gray-800 mb-4">Зміна пароля <span class="text-xs font-normal text-gray-400">(необов'язково)</span></h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Поточний пароль</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-lock text-gray-400 text-sm"></i>
+                                    </div>
+                                    <input id="currentPwd" name="CurrentPassword" type="password" maxlength="64" placeholder="Введіть поточний пароль" class="input-field pl-10 pr-10">
+                                    <button type="button" onclick="togglePwd('currentPwd','eyeCurrent')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                        <i id="eyeCurrent" class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                @if (ViewData.ModelState["CurrentPassword"]?.Errors.Count > 0)
+                                {
+                                    <p class="text-xs text-red-500 mt-1">@ViewData.ModelState["CurrentPassword"]!.Errors[0].ErrorMessage</p>
+                                }
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Новий пароль</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-lock text-gray-400 text-sm"></i>
+                                    </div>
+                                    <input id="newPwd" name="NewPassword" type="password" maxlength="64" minlength="6" placeholder="Мінімум 6 символів" class="input-field pl-10 pr-10">
+                                    <button type="button" onclick="togglePwd('newPwd','eyeNew')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                        <i id="eyeNew" class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Підтвердження нового пароля</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-lock text-gray-400 text-sm"></i>
+                                    </div>
+                                    <input id="confirmPwd" name="ConfirmNewPassword" type="password" maxlength="64" placeholder="Повторіть новий пароль" class="input-field pl-10 pr-10">
+                                    <button type="button" onclick="togglePwd('confirmPwd','eyeConfirm')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                        <i id="eyeConfirm" class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="RoleName" value="@Model.RoleName">
+                    <input type="hidden" name="RegistrationDate" value="@Model.RegistrationDate.ToString("O")">
+
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="flex-1 flex justify-center items-center py-3 px-4 rounded-lg font-bold text-white bg-st-purple hover:bg-st-purple-hover transition-colors shadow-lg shadow-purple-500/30">
+                            <i class="fas fa-save mr-2"></i> Зберегти зміни
+                        </button>
+                        <a href="/" class="px-5 py-3 border-2 border-gray-200 text-gray-600 font-bold rounded-lg hover:border-gray-300 transition-colors">
+                            Скасувати
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+    <script>
+        function togglePwd(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon  = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        document.querySelectorAll('input, textarea').forEach(input => {
+            input.addEventListener('invalid', function (e) {
+                this.setCustomValidity('');
+                if (this.validity.valueMissing) {
+                    this.setCustomValidity("Це поле обов'язкове для заповнення");
+                } else if (this.validity.typeMismatch && this.type === 'email') {
+                    this.setCustomValidity('Введіть дійсну адресу електронної пошти (наприклад: name@example.com)');
+                } else if (this.validity.tooShort) {
+                    this.setCustomValidity(`Мінімальна довжина — ${this.minLength} символів`);
+                } else if (this.validity.tooLong) {
+                    this.setCustomValidity(`Максимальна довжина — ${this.maxLength} символів`);
+                } else if (this.validity.rangeUnderflow) {
+                    this.setCustomValidity(`Мінімальне значення: ${this.min}`);
+                } else if (this.validity.patternMismatch) {
+                    this.setCustomValidity(this.title || 'Невірний формат');
+                }
+            });
+            input.addEventListener('input', function () {
+                this.setCustomValidity('');
+            });
+        });
+    </script>
+</body>
+</html>

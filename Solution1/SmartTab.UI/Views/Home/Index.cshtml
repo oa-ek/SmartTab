@@ -1,5 +1,9 @@
-﻿@{
+﻿@using System.Security.Claims
+@{
     Layout = null;
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var userName = isAuthenticated ? User.Identity!.Name : "";
+    var userRole = isAuthenticated ? User.FindFirst(ClaimTypes.Role)?.Value : "";
 }
 
 <!DOCTYPE html>
@@ -83,11 +87,42 @@
                 </div>
                 
                 <div class="flex items-center gap-6 shrink-0">
-                    <a href="/Home/Privacy" class="flex items-center gap-2 text-white hover:text-gray-300 transition-colors group">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="group-hover:text-st-purple transition-colors"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        <span class="font-medium text-[15px]">Вхід</span>
-                    </a>
-                    
+                    @if (isAuthenticated)
+                    {
+                        <div class="relative" id="user-menu-wrapper">
+                            <button id="user-menu-btn" onclick="toggleUserMenu()" class="flex items-center gap-2 text-white hover:text-gray-300 transition-colors">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="transition-colors"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                <span class="font-medium text-[15px] max-w-[120px] truncate">@userName</span>
+                                <i id="user-menu-chevron" class="fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200"></i>
+                            </button>
+                            <div id="user-menu-dropdown" class="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 hidden z-50">
+                                <a href="/Account/Profile" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-st-purple transition-colors">
+                                    <i class="fas fa-user-circle w-4"></i> Мій профіль
+                                </a>
+                                @if (userRole == "Admin")
+                                {
+                                    <a href="/Home/Admin" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-st-purple transition-colors">
+                                        <i class="fas fa-cog w-4"></i> Адмін панель
+                                    </a>
+                                }
+                                <hr class="my-1 border-gray-100">
+                                <form action="/Account/Logout" method="post" class="m-0">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                                        <i class="fas fa-sign-out-alt w-4"></i> Вийти
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <a href="/Account/Login" class="flex items-center gap-2 text-white hover:text-gray-300 transition-colors group">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="group-hover:text-st-purple transition-colors"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            <span class="font-medium text-[15px]">Вхід</span>
+                        </a>
+                    }
+
                     <button onclick="toggleCart()" class="flex items-center gap-2 bg-[#2a2a2a] hover:bg-[#333] border border-gray-700 px-4 py-2 rounded-lg text-white transition-colors relative">
                         <i class="fas fa-shopping-cart text-st-purple"></i>
                         <span class="font-medium text-[15px]">Кошик</span>
@@ -100,6 +135,21 @@
                 <input type="text" id="mobileSearchInput" placeholder="Я шукаю..." class="w-full py-2 px-4 rounded text-black outline-none" oninput="document.getElementById('searchInput').value = this.value; applyFilters();">
             </div>
         </header>
+
+        @if (userRole == "Admin")
+        {
+            <div class="bg-gradient-to-r from-[#3b0080] to-[#6f00ff] text-white py-2.5 px-4 border-b border-purple-900">
+                <div class="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
+                    <span class="text-sm font-medium flex items-center gap-2">
+                        <i class="fas fa-shield-alt text-purple-300"></i>
+                        Ви увійшли як <strong>Адміністратор</strong>
+                    </span>
+                    <a href="/Home/Admin" class="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-sm font-bold px-4 py-1.5 rounded-lg transition-colors border border-white/20 whitespace-nowrap">
+                        <i class="fas fa-cog"></i> Адмін панель
+                    </a>
+                </div>
+            </div>
+        }
 
         <div class="max-w-[1400px] mx-auto w-full px-4 py-6 flex flex-col md:flex-row gap-6 items-start">
             
@@ -143,6 +193,30 @@
         </div>
     </div>
 
+    <!-- Auth Modal -->
+    <div id="auth-modal-overlay" class="fixed inset-0 bg-black/60 z-[80] hidden flex items-center justify-center p-4" onclick="closeAuthModal(event)">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 relative" onclick="event.stopPropagation()">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-st-purple/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-lock text-st-purple text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900">Потрібна авторизація</h3>
+                <p class="text-gray-500 text-sm mt-2">Щоб додати товар до кошика,<br>увійдіть або зареєструйтесь</p>
+            </div>
+            <div class="space-y-3">
+                <a href="/Account/Login" class="w-full flex justify-center items-center py-3 px-4 rounded-lg font-bold text-white bg-[#6f00ff] hover:bg-[#5b00d6] transition-colors shadow-lg shadow-purple-500/30">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Увійти
+                </a>
+                <a href="/Home/Privacy" class="w-full flex justify-center items-center py-3 px-4 rounded-lg font-bold text-[#6f00ff] border-2 border-[#6f00ff] hover:bg-purple-50 transition-colors">
+                    <i class="fas fa-user-plus mr-2"></i> Зареєструватись
+                </a>
+            </div>
+        </div>
+    </div>
+
     <div id="cart-overlay" class="fixed inset-0 bg-black/50 z-[60] hidden transition-opacity opacity-0" onclick="toggleCart()"></div>
     <div id="cart-panel" class="fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white z-[70] shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-gray-50">
@@ -169,6 +243,8 @@
     </div>
 
     <script>
+        const IS_AUTHENTICATED = @(isAuthenticated ? "true" : "false");
+
         let allProducts = [];
         let allManufacturers = [];
         let allCategories = [];
@@ -177,7 +253,34 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadData();
             loadCart();
+
+            document.addEventListener('click', (e) => {
+                const wrapper = document.getElementById('user-menu-wrapper');
+                if (wrapper && !wrapper.contains(e.target)) {
+                    closeUserMenu();
+                }
+            });
         });
+
+        function toggleUserMenu() {
+            const drop = document.getElementById('user-menu-dropdown');
+            const chevron = document.getElementById('user-menu-chevron');
+            if (!drop) return;
+            const isOpen = !drop.classList.contains('hidden');
+            if (isOpen) {
+                closeUserMenu();
+            } else {
+                drop.classList.remove('hidden');
+                chevron?.classList.add('rotate-180');
+            }
+        }
+
+        function closeUserMenu() {
+            const drop = document.getElementById('user-menu-dropdown');
+            const chevron = document.getElementById('user-menu-chevron');
+            drop?.classList.add('hidden');
+            chevron?.classList.remove('rotate-180');
+        }
 
         function loadData() {
             Promise.all([
@@ -326,6 +429,12 @@
         }
 
         function addToCart(productId) {
+            if (!IS_AUTHENTICATED) {
+                document.getElementById('auth-modal-overlay').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                return;
+            }
+
             const product = allProducts.find(p => p.id === productId);
             if (!product) return;
 
@@ -340,10 +449,9 @@
             } else {
                 cart.push({ ...product, quantity: 1 });
             }
-            
+
             saveCart();
-            
-            // Анімація додавання
+
             const btn = event.currentTarget;
             btn.innerHTML = '<i class="fas fa-check"></i>';
             btn.classList.add('bg-green-500', 'text-white');
@@ -353,6 +461,12 @@
                 btn.classList.remove('bg-green-500', 'text-white');
                 btn.classList.add('bg-st-purple/10', 'text-st-purple');
             }, 1000);
+        }
+
+        function closeAuthModal(e) {
+            if (e && e.target !== document.getElementById('auth-modal-overlay')) return;
+            document.getElementById('auth-modal-overlay').classList.add('hidden');
+            document.body.style.overflow = '';
         }
 
         function removeFromCart(productId) {

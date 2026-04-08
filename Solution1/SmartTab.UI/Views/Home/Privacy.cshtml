@@ -92,7 +92,7 @@
             </h2>
             <p class="mt-2 text-center text-sm text-gray-600">
                 Або
-                <a href="/login" class="font-medium text-st-purple hover:underline transition-colors">
+                <a href="/Account/Login" class="font-medium text-st-purple hover:underline transition-colors">
                     увійдіть, якщо вже зареєстровані
                 </a>
             </p>
@@ -349,33 +349,79 @@
             }
         }
 
-        function handleRegister(event) {
+        async function handleRegister(event) {
             event.preventDefault();
+
             const password = document.getElementById('password').value;
             const confirm = document.getElementById('confirm_password').value;
-
-            if (password !== confirm) {
-                return;
-            }
+            if (password !== confirm) return;
 
             const btn = document.getElementById('submit-btn');
-            const originalText = btn.innerHTML;
-            
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-2"></i> Створення...';
             btn.disabled = true;
 
-            // Імітація запиту до API
-            setTimeout(() => {
-                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Успішно!';
-                btn.classList.replace('bg-st-purple', 'bg-green-500');
-                btn.classList.replace('hover:bg-st-purple-hover', 'hover:bg-green-600');
-                
-                setTimeout(() => {
-                    alert('Реєстрація успішна! (Імітація)');
-                    window.location.href = '/login';
-                }, 1000);
-            }, 1500);
+            const params = new URLSearchParams({
+                FullName:        document.getElementById('name').value,
+                Email:           document.getElementById('email').value,
+                PhoneNumber:     document.getElementById('phone').value,
+                Password:        password,
+                ConfirmPassword: confirm,
+                AgreeToTerms:    document.getElementById('terms').checked ? 'true' : 'false'
+            });
+
+            try {
+                const res  = await fetch('/Account/Register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString()
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    btn.innerHTML = '<i class="fas fa-check mr-2"></i> Успішно!';
+                    btn.classList.replace('bg-st-purple', 'bg-green-500');
+                    btn.classList.replace('hover:bg-st-purple-hover', 'hover:bg-green-600');
+                    setTimeout(() => window.location.href = data.redirectUrl || '/', 800);
+                } else {
+                    btn.innerHTML = 'Зареєструватися';
+                    btn.disabled = false;
+                    // Показати першу помилку
+                    const firstError = data.errors
+                        ? Object.values(data.errors)[0]
+                        : (data.error || 'Помилка реєстрації');
+                    showFormError(firstError);
+                }
+            } catch {
+                btn.innerHTML = 'Зареєструватися';
+                btn.disabled = false;
+                showFormError('Помилка з\'єднання з сервером');
+            }
         }
+
+        function showFormError(msg) {
+            let el = document.getElementById('server-error');
+            if (!el) {
+                el = document.createElement('p');
+                el.id = 'server-error';
+                el.className = 'text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-center';
+                document.querySelector('form').prepend(el);
+            }
+            el.textContent = msg;
+        }
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('invalid', function () {
+                this.setCustomValidity('');
+                if (this.validity.valueMissing) {
+                    this.setCustomValidity("Це поле обов'язкове для заповнення");
+                } else if (this.validity.typeMismatch && this.type === 'email') {
+                    this.setCustomValidity('Введіть дійсну адресу електронної пошти (наприклад: name@example.com)');
+                } else if (this.validity.tooShort) {
+                    this.setCustomValidity(`Мінімальна довжина — ${this.minLength} символів`);
+                }
+            });
+            input.addEventListener('input', function () { this.setCustomValidity(''); });
+        });
     </script>
 </body>
 </html>
