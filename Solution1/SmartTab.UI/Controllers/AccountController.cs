@@ -158,7 +158,8 @@ public class AccountController : Controller
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
             RoleName = user.Role.Name,
-            RegistrationDate = user.RegistrationDate
+            RegistrationDate = user.RegistrationDate,
+            Balance = user.Balance
         };
 
         return View(model);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
@@ -546,6 +547,195 @@ namespace SmartTab.UI.Controllers
             {
                 return BadRequest(ex.InnerException?.Message ?? ex.Message);
             }
+        }
+
+        // GET: /api/balance
+        [HttpGet("api/balance")]
+        [Authorize]
+        public async Task<IActionResult> GetBalance()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return NotFound();
+            return Ok(new { balance = user.Balance });
+        }
+
+        // POST: /api/orders
+        [HttpPost("api/orders")]
+        [Authorize]
+        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
+        {
+            try
+            {
+                if (request.Items == null || request.Items.Count == 0)
+                    return BadRequest(new { error = "Кошик порожній" });
+
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null) return NotFound(new { error = "Користувача не знайдено" });
+
+                // Завантажуємо продукти з інвентарем
+                var productIds = request.Items.Select(i => i.ProductId).ToList();
+                var products = await _context.Products
+                    .Include(p => p.InventoryItems.Where(inv => !inv.IsSold))
+                    .Where(p => productIds.Contains(p.Id))
+                    .ToListAsync();
+
+                // Перевіряємо наявність кожного товару
+                decimal totalPrice = 0;
+                var orderItems = new List<OrderItem>();
+
+                foreach (var item in request.Items)
+                {
+                    var product = products.FirstOrDefault(p => p.Id == item.ProductId);
+                    if (product == null)
+                        return BadRequest(new { error = $"Товар з ID {item.ProductId} не знайдено" });
+
+                    if (product.StockCount < item.Quantity)
+                        return BadRequest(new { error = $"Недостатньо '{product.Name}' на складі. Доступно: {product.StockCount}" });
+
+                    totalPrice += product.Price * item.Quantity;
+                    orderItems.Add(new OrderItem
+                    {
+                        ProductId = product.Id,
+                        Quantity = item.Quantity,
+                        UnitPrice = product.Price
+                    });
+                }
+
+                // Перевіряємо баланс
+                if (user.Balance < totalPrice)
+                    return BadRequest(new { error = $"Недостатньо коштів. Потрібно: {totalPrice} ₴, баланс: {user.Balance} ₴" });
+
+                // Створюємо замовлення
+                var order = new Order
+                {
+                    UserId = userId,
+                    OrderDate = DateTime.Now,
+                    Price = totalPrice,
+                    Status = "Оплачено"
+                };
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+
+                // Додаємо позиції замовлення
+                foreach (var oi in orderItems)
+                {
+                    oi.OrderId = order.Id;
+                    _context.OrderItems.Add(oi);
+                }
+                await _context.SaveChangesAsync(); // OrderItems отримують свої Id
+
+                // Оновлюємо склад та прив'язуємо InventoryItems
+                foreach (var oi in orderItems)
+                {
+                    var product = products.First(p => p.Id == oi.ProductId);
+                    product.StockCount -= oi.Quantity;
+
+                    var availableInventory = product.InventoryItems
+                        .Where(inv => !inv.IsSold)
+                        .Take(oi.Quantity)
+                        .ToList();
+
+                    foreach (var inv in availableInventory)
+                    {
+                        inv.IsSold = true;
+                        inv.OrderItemId = oi.Id;
+                    }
+                }
+
+                // Списуємо баланс
+                user.Balance -= totalPrice;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, orderId = order.Id, newBalance = user.Balance });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = $"Помилка: {ex.Message}" });
+            }
+        }
+
+        // GET: /api/orders/my
+        [HttpGet("api/orders/my")]
+        [Authorize]
+        public async Task<IActionResult> GetMyOrders()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var orders = await _context.Orders
+                .Where(o => o.UserId == userId)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .OrderByDescending(o => o.OrderDate)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.OrderDate,
+                    o.Price,
+                    o.Status,
+                    Items = o.OrderItems.Select(oi => new
+                    {
+                        oi.Product.Name,
+                        oi.Product.ImageUrl,
+                        oi.Quantity,
+                        oi.UnitPrice
+                    })
+                })
+                .ToListAsync();
+
+            return Ok(orders);
+        }
+
+        // GET: /api/users (Admin only)
+        [HttpGet("api/users")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _context.Users
+                .Include(u => u.Role)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FirstName,
+                    u.LastName,
+                    u.Email,
+                    u.Balance,
+                    Role = u.Role.Name
+                })
+                .ToListAsync();
+            return Ok(users);
+        }
+
+        // PUT: /api/users/{id}/balance (Admin only)
+        [HttpPut("api/users/{id}/balance")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUserBalance(int id, [FromBody] UpdateBalanceRequest request)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { error = "Користувача не знайдено" });
+
+            user.Balance = request.Balance;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, newBalance = user.Balance });
+        }
+
+        // DELETE: /api/orders/{id} (Admin only) — видалення порожніх замовлень
+        [HttpDelete("api/orders/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteOrder(int id)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null) return NotFound(new { error = "Замовлення не знайдено" });
+
+            _context.OrderItems.RemoveRange(order.OrderItems);
+            _context.Orders.Remove(order);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

@@ -84,6 +84,7 @@ public class ProfileViewModel
 
     public string? RoleName { get; set; }
     public DateTime RegistrationDate { get; set; }
+    public decimal Balance { get; set; }
 }
 
 public class ForgotPasswordViewModel

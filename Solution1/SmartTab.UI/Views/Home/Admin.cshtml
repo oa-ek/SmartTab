@@ -181,6 +181,15 @@
                 </div>
             </div>
 
+            <div class="bg-white rounded shadow-sm border border-gray-100 p-5 mb-8">
+                <h2 class="text-sm font-bold mb-4 text-gray-900 flex items-center">
+                    <i class="fas fa-wallet text-st-purple mr-2"></i> Керування балансом користувачів
+                </h2>
+                <div id="users-list" class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 text-sm">
+                    <div class="text-gray-400 text-center py-4">Завантаження...</div>
+                </div>
+            </div>
+
             <div class="bg-white rounded shadow-sm border border-gray-100 p-6">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-900">Всі товари <span id="product-count-label" class="text-gray-400 font-normal ml-2 text-sm"></span></h2>
@@ -273,6 +282,7 @@
         let allProducts = [];
         let allCategories = [];
         let allManufacturers = [];
+        let allUsers = [];
 
         document.addEventListener('DOMContentLoaded', loadData);
 
@@ -702,16 +712,19 @@
             Promise.all([
                 fetch('/api/categories').then(res => res.json()).catch(() => []),
                 fetch('/api/manufacturers').then(res => res.json()).catch(() => []),
-                fetch('/api/products').then(res => res.json()).catch(() => [])
-            ]).then(([categories, manufacturers, products]) => {
+                fetch('/api/products').then(res => res.json()).catch(() => []),
+                fetch('/api/users').then(res => res.json()).catch(() => [])
+            ]).then(([categories, manufacturers, products, users]) => {
                 allCategories = categories.map(c => ({...c, productCount: products.filter(p => p.categoryId == c.id).length}));
                 allManufacturers = manufacturers.map(m => ({...m, productCount: products.filter(p => p.manufacturerId == m.id).length}));
                 allProducts = products;
+                allUsers = users;
 
                 renderCheckboxes();
                 renderCategoryList();
                 renderManufacturerList();
                 renderProducts(allProducts);
+                renderUsersList(allUsers);
             });
         }
 
@@ -1111,6 +1124,59 @@
             document.getElementById('manufacturerSubmitBtn').innerText = 'Зберегти виробника';
             document.getElementById('manufacturerSubmitBtn').onclick = addManufacturer;
             document.getElementById('manufacturerCancelBtn').classList.add('hidden');
+        }
+
+        // --- Керування балансом користувачів ---
+        function renderUsersList(users) {
+            const container = document.getElementById('users-list');
+            if (!users || users.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-center py-4">Користувачів не знайдено</div>';
+                return;
+            }
+            container.innerHTML = users.map(u => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100" id="user-row-${u.id}">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-st-purple/10 rounded-full flex items-center justify-center shrink-0">
+                            <i class="fas ${u.role === 'Admin' ? 'fa-shield-alt text-purple-600' : 'fa-user text-gray-400'} text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-800">${u.lastName} ${u.firstName}</div>
+                            <div class="text-xs text-gray-400">${u.email} · <span class="${u.role === 'Admin' ? 'text-purple-600' : 'text-gray-500'}">${u.role}</span></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <input type="number" id="balance-input-${u.id}" value="${u.balance}" step="1000" min="0"
+                                   class="w-28 text-right text-sm font-bold px-2 py-1.5 border-0 focus:ring-0 outline-none" />
+                            <span class="text-xs text-gray-400 pr-2">₴</span>
+                        </div>
+                        <button onclick="updateBalance(${u.id})" class="bg-st-purple hover:bg-st-purple-hover text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                            <i class="fas fa-save"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateBalance(userId) {
+            const input = document.getElementById('balance-input-' + userId);
+            const newBalance = parseFloat(input.value);
+            if (isNaN(newBalance) || newBalance < 0) { alert('Невірне значення балансу'); return; }
+
+            try {
+                const res = await fetch('/api/users/' + userId + '/balance', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ balance: newBalance })
+                });
+                if (!res.ok) { const d = await res.json(); alert(d.error || 'Помилка'); return; }
+
+                const row = document.getElementById('user-row-' + userId);
+                row.classList.add('ring-2', 'ring-green-400');
+                setTimeout(() => row.classList.remove('ring-2', 'ring-green-400'), 1500);
+            } catch (e) {
+                alert('Помилка з\'єднання');
+            }
         }
     </script>
 </body>

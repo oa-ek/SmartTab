@@ -70,6 +70,7 @@
                     
                     @if (isAuthenticated)
                     {
+                        <span id="user-balance-badge" class="text-xs font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full hidden"></span>
                         <div class="relative" id="user-menu-wrapper">
                             <button onclick="toggleUserMenu()" class="flex items-center gap-2 text-white hover:text-st-purple transition-colors">
                                 <i class="fas fa-user-circle text-xl text-st-purple"></i>
@@ -190,7 +191,7 @@
                 <span>Разом:</span>
                 <span id="cart-total" class="text-2xl text-[#f84147] font-black">0 ₴</span>
             </div>
-            <button onclick="alert('Оформлення замовлення скоро буде!')" class="w-full bg-st-purple hover:bg-st-purple-hover text-white py-4 rounded-xl font-black uppercase tracking-wider transition-all shadow-lg shadow-purple-500/30">Оформити замовлення</button>
+            <button id="checkout-btn" onclick="checkout()" class="w-full bg-st-purple hover:bg-st-purple-hover text-white py-4 rounded-xl font-black uppercase tracking-wider transition-all shadow-lg shadow-purple-500/30">Оформити замовлення</button>
         </div>
     </div>
 
@@ -204,6 +205,7 @@
             { id: 'mb', name: 'Материнська плата', icon: 'fa-chess-board', keywords: ['материнська', 'motherboard', 'плата'] },
             { id: 'ram', name: 'Оперативна пам\'ять', icon: 'fa-memory', keywords: ['пам\'ять', 'ram', 'ddr'] },
             { id: 'gpu', name: 'Відеокарта', icon: 'fa-vr-cardboard', keywords: ['відеокарта', 'gpu', 'графічн'] },
+            { id: 'cooler', name: 'Охолодження', icon: 'fa-fan', keywords: ['охолодження', 'cooler', 'кулер'] },
             { id: 'storage', name: 'Накопичувач (SSD/HDD)', icon: 'fa-hdd', keywords: ['ssd', 'hdd', 'накопичувач', 'диск', 'жорсткий'] },
             { id: 'psu', name: 'Блок живлення', icon: 'fa-plug', keywords: ['блок живлення', 'psu', 'живлення'] },
             { id: 'case', name: 'Корпус', icon: 'fa-box', keywords: ['корпус', 'case'] }
@@ -215,7 +217,8 @@
 
         document.addEventListener('DOMContentLoaded', () => { 
             loadData(); 
-            loadCart(); 
+            loadCart();
+            if (IS_AUTHENTICATED) loadBalance();
         });
 
         async function loadData() {
@@ -286,6 +289,133 @@
             updateSummary();
         }
 
+        // --- Допоміжна функція для зчитування характеристик продукту ---
+        function getSpec(product, specName) {
+            if (!product || !product.specs) return null;
+            const spec = product.specs.find(s => s.name.toLowerCase().trim() === specName.toLowerCase().trim());
+            return spec ? spec.value.trim() : null;
+        }
+
+        // --- Перевірка сумісності компонента з уже вибраними ---
+        function checkCompatibility(product, slotId) {
+            const warnings = [];
+            const mb = selectedBuild['mb'];
+            const cpu = selectedBuild['cpu'];
+            const gpu = selectedBuild['gpu'];
+            const psu = selectedBuild['psu'];
+
+            if (slotId === 'cpu') {
+                // CPU ↔ MB: перевірка сокету
+                if (mb) {
+                    const mbSocket = getSpec(mb, 'Сокет');
+                    const cpuSocket = getSpec(product, 'Сокет');
+                    if (mbSocket && cpuSocket && mbSocket.toLowerCase() !== cpuSocket.toLowerCase()) {
+                        warnings.push(`Сокет ${cpuSocket} не підходить до плати (${mbSocket})`);
+                    }
+                }
+            }
+
+            if (slotId === 'mb') {
+                // MB ↔ CPU: перевірка сокету
+                if (cpu) {
+                    const cpuSocket = getSpec(cpu, 'Сокет');
+                    const mbSocket = getSpec(product, 'Сокет');
+                    if (cpuSocket && mbSocket && cpuSocket.toLowerCase() !== mbSocket.toLowerCase()) {
+                        warnings.push(`Сокет плати ${mbSocket} не підходить до процесора (${cpuSocket})`);
+                    }
+                }
+                // MB ↔ RAM: перевірка типу пам'яті
+                const ram = selectedBuild['ram'];
+                if (ram) {
+                    const ramType = getSpec(ram, "Тип пам'яті");
+                    const mbRamType = getSpec(product, "Тип пам'яті");
+                    if (ramType && mbRamType && !ramType.toLowerCase().includes(mbRamType.toLowerCase()) && !mbRamType.toLowerCase().includes(ramType.toLowerCase())) {
+                        warnings.push(`Плата підтримує ${mbRamType}, а ОЗП — ${ramType}`);
+                    }
+                }
+            }
+
+            if (slotId === 'ram') {
+                // RAM ↔ MB: перевірка типу пам'яті
+                if (mb) {
+                    const mbRamType = getSpec(mb, "Тип пам'яті");
+                    const ramType = getSpec(product, "Тип пам'яті");
+                    if (mbRamType && ramType && !ramType.toLowerCase().includes(mbRamType.toLowerCase()) && !mbRamType.toLowerCase().includes(ramType.toLowerCase())) {
+                        warnings.push(`ОЗП ${ramType} не підходить до плати (${mbRamType})`);
+                    }
+                }
+            }
+
+            if (slotId === 'gpu') {
+                // GPU ↔ PSU: перевірка TDP vs потужність БЖ
+                if (psu) {
+                    const gpuTdp = parseInt(getSpec(product, 'Енергоспоживання (Вт)')) || 0;
+                    const psuPower = parseInt(getSpec(psu, 'Потужність (Вт)')) || 0;
+                    if (gpuTdp > 0 && psuPower > 0 && gpuTdp > psuPower * 0.7) {
+                        warnings.push(`GPU споживає ${gpuTdp}Вт — рекомендовано БЖ від ${Math.ceil(gpuTdp / 0.7)}Вт (ваш: ${psuPower}Вт)`);
+                    }
+                }
+            }
+
+            if (slotId === 'psu') {
+                // PSU ↔ GPU: перевірка потужності
+                if (gpu) {
+                    const gpuTdp = parseInt(getSpec(gpu, 'Енергоспоживання (Вт)')) || 0;
+                    const psuPower = parseInt(getSpec(product, 'Потужність (Вт)')) || 0;
+                    if (gpuTdp > 0 && psuPower > 0 && gpuTdp > psuPower * 0.7) {
+                        warnings.push(`БЖ ${psuPower}Вт може бути замало для GPU (${gpuTdp}Вт TDP)`);
+                    }
+                }
+                // PSU ↔ CPU: додатково перевірити TDP процесора
+                if (cpu) {
+                    const cpuTdp = parseInt(getSpec(cpu, 'TDP (Вт)')) || 0;
+                    const gpuTdp = gpu ? (parseInt(getSpec(gpu, 'Енергоспоживання (Вт)')) || 0) : 0;
+                    const psuPower = parseInt(getSpec(product, 'Потужність (Вт)')) || 0;
+                    const totalTdp = cpuTdp + gpuTdp + 100; // +100Вт на інше
+                    if (psuPower > 0 && totalTdp > psuPower) {
+                        warnings.push(`Загальне споживання ~${totalTdp}Вт перевищує БЖ ${psuPower}Вт`);
+                    }
+                }
+            }
+
+            if (slotId === 'cooler') {
+                // Cooler ↔ CPU/MB: перевірка сокету
+                const targetSocket = cpu ? getSpec(cpu, 'Сокет') : (mb ? getSpec(mb, 'Сокет') : null);
+                if (targetSocket) {
+                    const coolerSocket = getSpec(product, 'Сокет');
+                    if (coolerSocket && !coolerSocket.toLowerCase().includes(targetSocket.toLowerCase())) {
+                        warnings.push(`Кулер для ${coolerSocket}, а процесор/плата — ${targetSocket}`);
+                    }
+                }
+                // Cooler ↔ CPU: перевірка TDP
+                if (cpu) {
+                    const cpuTdp = parseInt(getSpec(cpu, 'TDP (Вт)')) || 0;
+                    const coolerTdp = parseInt(getSpec(product, 'TDP (Вт)')) || 0;
+                    if (cpuTdp > 0 && coolerTdp > 0 && coolerTdp < cpuTdp) {
+                        warnings.push(`Кулер розрахований на ${coolerTdp}Вт, а CPU споживає ${cpuTdp}Вт`);
+                    }
+                }
+            }
+
+            if (slotId === 'case') {
+                // Case ↔ MB: перевірка форм-фактору
+                if (mb) {
+                    const mbFF = getSpec(mb, 'Форм-фактор');
+                    const caseFF = getSpec(product, 'Форм-фактор');
+                    if (mbFF && caseFF) {
+                        const mbSize = {'mini-itx':1,'m-itx':1,'itx':1,'micro-atx':2,'m-atx':2,'matx':2,'atx':3,'e-atx':4,'eatx':4};
+                        const caseSizeVal = mbSize[caseFF.toLowerCase()] || 3;
+                        const mbSizeVal = mbSize[mbFF.toLowerCase()] || 3;
+                        if (mbSizeVal > caseSizeVal) {
+                            warnings.push(`Плата ${mbFF} не влізе в корпус ${caseFF}`);
+                        }
+                    }
+                }
+            }
+
+            return warnings;
+        }
+
         // Логіка пошуку відповідних категорій
         function getEligibleProductsForSlot(slotId) {
             const slotDef = configSlots.find(s => s.id === slotId);
@@ -338,24 +468,37 @@
             grid.innerHTML = filtered.map(p => {
                 const isOutOfStock = !p.stockCount || p.stockCount <= 0;
                 const isSelected = selectedBuild[currentModalSlotId]?.id === p.id;
+                const warnings = checkCompatibility(p, currentModalSlotId);
+                const hasWarnings = warnings.length > 0;
                 
                 let btnHtml = '';
+                let warningHtml = '';
+                if (hasWarnings) {
+                    warningHtml = `<div class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-[11px] text-red-600 leading-tight">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>${warnings.join('<br><i class="fas fa-exclamation-triangle mr-1"></i>')}
+                    </div>`;
+                }
+
                 if (isSelected) {
                     btnHtml = `<button disabled class="w-full mt-3 bg-green-500 text-white font-bold py-2.5 rounded-lg text-sm uppercase">Вибрано <i class="fas fa-check ml-1"></i></button>`;
                 } else if (isOutOfStock) {
                     btnHtml = `<button disabled class="w-full mt-3 bg-gray-100 text-gray-400 font-bold py-2.5 rounded-lg text-sm cursor-not-allowed">Немає в наявності</button>`;
+                } else if (hasWarnings) {
+                    btnHtml = `<button onclick="selectPart(${p.id})" class="w-full mt-3 bg-orange-100 text-orange-600 hover:bg-orange-500 hover:text-white font-bold py-2.5 rounded-lg text-sm transition-colors uppercase tracking-wide">Додати попри це</button>`;
                 } else {
                     btnHtml = `<button onclick="selectPart(${p.id})" class="w-full mt-3 bg-st-purple/10 text-st-purple hover:bg-st-purple hover:text-white font-bold py-2.5 rounded-lg text-sm transition-colors uppercase tracking-wide">Додати в збірку</button>`;
                 }
 
+                const borderClass = isSelected ? 'border-green-500 shadow-md' : (hasWarnings ? 'border-orange-300 bg-orange-50/30' : 'border-gray-200 hover:border-st-purple/30');
+
                 return `
-                <div class="bg-white rounded-xl p-4 border ${isSelected ? 'border-green-500 shadow-md' : 'border-gray-200 hover:border-st-purple/30'} flex flex-col h-full transition-all relative">
+                <div class="bg-white rounded-xl p-4 border ${borderClass} flex flex-col h-full transition-all relative">
                     <div class="h-32 mb-3 flex items-center justify-center p-2 bg-white rounded-lg">
                         <img src="${p.imageUrl || ''}" class="max-h-full object-contain" onerror="this.src=''; this.parentElement.innerHTML='<i class=\\'fas fa-image text-gray-200 text-4xl\\'></i>'">
                     </div>
                     <div class="text-[10px] text-gray-400 uppercase font-bold mb-1">${p.manufacturerName || 'Brend'}</div>
                     <div class="font-bold text-gray-900 text-[13px] leading-snug line-clamp-2 mb-2">${p.name}</div>
-                    
+                    ${warningHtml}
                     <div class="mt-auto">
                         <div class="text-lg font-black text-[#f84147]">${p.price} <span class="text-xs text-gray-400 font-bold">₴</span></div>
                         ${btnHtml}
@@ -505,6 +648,91 @@
         function closeAuthModal(e) { 
             if (e && e.target !== document.getElementById('auth-modal-overlay')) return;
             document.getElementById('auth-modal-overlay').classList.add('hidden'); 
+        }
+
+        function toggleUserMenu() {
+            // no dropdown on ConfigPC, placeholder
+        }
+
+        async function loadBalance() {
+            try {
+                const res = await fetch('/api/balance');
+                if (!res.ok) return;
+                const data = await res.json();
+                const badge = document.getElementById('user-balance-badge');
+                if (badge) {
+                    badge.textContent = data.balance.toLocaleString('uk-UA') + ' ₴';
+                    badge.classList.remove('hidden');
+                }
+            } catch (e) {}
+        }
+
+        // --- Оформлення замовлення ---
+        async function checkout() {
+            if (!IS_AUTHENTICATED) {
+                document.getElementById('auth-modal-overlay').classList.remove('hidden');
+                return;
+            }
+
+            if (cart.length === 0) return;
+
+            const btn = document.getElementById('checkout-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Обробка...';
+
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: cart.map(i => ({ productId: i.id, quantity: i.quantity }))
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'Помилка оформлення замовлення');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Оформити замовлення';
+                    return;
+                }
+
+                // Успіх
+                cart = [];
+                saveCart();
+                
+                const container = document.getElementById('cart-items');
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-check text-green-500 text-3xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Замовлення оформлено!</h3>
+                        <p class="text-gray-500 text-sm mb-1">Замовлення #${data.orderId}</p>
+                        <p class="text-gray-500 text-sm">Залишок балансу: <span class="font-bold text-st-purple">${data.newBalance} ₴</span></p>
+                    </div>`;
+                
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Оплачено';
+                btn.classList.replace('bg-st-purple', 'bg-green-500');
+
+                // Оновлюємо бейдж балансу
+                const badge = document.getElementById('user-balance-badge');
+                if (badge) {
+                    badge.textContent = data.newBalance.toLocaleString('uk-UA') + ' ₴';
+                }
+                
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Оформити замовлення';
+                    btn.classList.replace('bg-green-500', 'bg-st-purple');
+                }, 5000);
+
+            } catch (e) {
+                alert('Помилка з\'єднання з сервером');
+                btn.disabled = false;
+                btn.innerHTML = 'Оформити замовлення';
+            }
         }
     </script>
 </body>

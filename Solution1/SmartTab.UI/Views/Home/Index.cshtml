@@ -4,6 +4,7 @@
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var userName = isAuthenticated ? User.Identity!.Name : "";
     var userRole = isAuthenticated ? User.FindFirst(ClaimTypes.Role)?.Value : "";
+    var userId = isAuthenticated ? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value : null;
 }
 
 <!DOCTYPE html>
@@ -102,6 +103,7 @@
                             <button id="user-menu-btn" onclick="toggleUserMenu()" class="flex items-center gap-2 text-white hover:text-st-purple transition-colors">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                 <span class="font-medium text-[15px] max-w-[120px] truncate">@userName</span>
+                                <span id="user-balance-badge" class="text-xs font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full hidden"></span>
                                 <i id="user-menu-chevron" class="fas fa-chevron-down text-xs text-gray-400"></i>
                             </button>
                             <div id="user-menu-dropdown" class="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 hidden z-50">
@@ -200,7 +202,7 @@
                 <span>Разом:</span>
                 <span id="cart-total" class="text-2xl text-st-purple">0 ₴</span>
             </div>
-            <button onclick="checkout()" class="w-full bg-st-purple hover:bg-st-purple-hover text-white py-3.5 rounded-lg font-bold transition-all shadow-lg shadow-purple-500/30">Оформити замовлення</button>
+            <button id="checkout-btn" onclick="checkout()" class="w-full bg-st-purple hover:bg-st-purple-hover text-white py-3.5 rounded-lg font-bold transition-all shadow-lg shadow-purple-500/30">Оформити замовлення</button>
         </div>
     </div>
 
@@ -208,7 +210,7 @@
         const IS_AUTHENTICATED = @(isAuthenticated ? "true" : "false");
         let allProducts = [], allManufacturers = [], allCategories = [], cart = [];
 
-        document.addEventListener('DOMContentLoaded', () => { loadData(); loadCart(); });
+        document.addEventListener('DOMContentLoaded', () => { loadData(); loadCart(); if (IS_AUTHENTICATED) loadBalance(); });
 
         function toggleUserMenu() {
             const drop = document.getElementById('user-menu-dropdown');
@@ -398,10 +400,83 @@
             if (e && e.target !== document.getElementById('auth-modal-overlay')) return;
             document.getElementById('auth-modal-overlay').classList.add('hidden'); 
         }
-        
-        function checkout() { 
-            if(cart.length === 0) return;
-            alert('Оформлення замовлення скоро буде!'); 
+
+        async function loadBalance() {
+            try {
+                const res = await fetch('/api/balance');
+                if (!res.ok) return;
+                const data = await res.json();
+                const badge = document.getElementById('user-balance-badge');
+                if (badge) {
+                    badge.textContent = data.balance.toLocaleString('uk-UA') + ' ₴';
+                    badge.classList.remove('hidden');
+                }
+            } catch (e) {}
+        }
+
+        async function checkout() { 
+            if (!IS_AUTHENTICATED) {
+                document.getElementById('auth-modal-overlay').classList.remove('hidden');
+                return;
+            }
+            if (cart.length === 0) return;
+
+            const btn = document.getElementById('checkout-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Обробка...';
+
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: cart.map(i => ({ productId: i.id, quantity: i.quantity }))
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'Помилка оформлення замовлення');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Оформити замовлення';
+                    return;
+                }
+
+                cart = [];
+                saveCart();
+
+                const container = document.getElementById('cart-items');
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-check text-green-500 text-3xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Замовлення оформлено!</h3>
+                        <p class="text-gray-500 text-sm mb-1">Замовлення #${data.orderId}</p>
+                        <p class="text-gray-500 text-sm">Залишок балансу: <span class="font-bold text-st-purple">${data.newBalance} ₴</span></p>
+                    </div>`;
+                
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Оплачено';
+                btn.classList.replace('bg-st-purple', 'bg-green-500');
+
+                // Оновлюємо бейдж балансу
+                const badge = document.getElementById('user-balance-badge');
+                if (badge) {
+                    badge.textContent = data.newBalance.toLocaleString('uk-UA') + ' ₴';
+                }
+                
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Оформити замовлення';
+                    btn.classList.replace('bg-green-500', 'bg-st-purple');
+                }, 5000);
+
+            } catch (e) {
+                alert('Помилка з\'єднання з сервером');
+                btn.disabled = false;
+                btn.innerHTML = 'Оформити замовлення';
+            }
         }
     </script>
 </body>
