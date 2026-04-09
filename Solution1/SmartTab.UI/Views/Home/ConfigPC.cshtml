@@ -217,7 +217,6 @@
 
         document.addEventListener('DOMContentLoaded', () => { 
             loadData(); 
-            loadCart();
             if (IS_AUTHENTICATED) loadBalance();
         });
 
@@ -231,6 +230,7 @@
                 allProducts = await productsRes.json();
                 
                 renderSlots();
+                loadCart();
                 document.getElementById('loading-state').classList.add('hidden');
                 document.getElementById('configurator-content').classList.remove('hidden');
             } catch (e) {
@@ -292,7 +292,11 @@
         // --- Допоміжна функція для зчитування характеристик продукту ---
         function getSpec(product, specName) {
             if (!product || !product.specs) return null;
-            const spec = product.specs.find(s => s.name.toLowerCase().trim() === specName.toLowerCase().trim());
+            const key = specName.toLowerCase().trim();
+            // Точний збіг
+            let spec = product.specs.find(s => s.name.toLowerCase().trim() === key);
+            // Fallback: початок назви збігається (для 'Форм-фактор' → 'Форм-фактор (ATX/Mini-ITX)')
+            if (!spec) spec = product.specs.find(s => s.name.toLowerCase().trim().startsWith(key));
             return spec ? spec.value.trim() : null;
         }
 
@@ -382,7 +386,7 @@
                 // Cooler ↔ CPU/MB: перевірка сокету
                 const targetSocket = cpu ? getSpec(cpu, 'Сокет') : (mb ? getSpec(mb, 'Сокет') : null);
                 if (targetSocket) {
-                    const coolerSocket = getSpec(product, 'Сокет');
+                    const coolerSocket = getSpec(product, 'Підтримувані сокети') || getSpec(product, 'Сокет');
                     if (coolerSocket && !coolerSocket.toLowerCase().includes(targetSocket.toLowerCase())) {
                         warnings.push(`Кулер для ${coolerSocket}, а процесор/плата — ${targetSocket}`);
                     }
@@ -390,7 +394,7 @@
                 // Cooler ↔ CPU: перевірка TDP
                 if (cpu) {
                     const cpuTdp = parseInt(getSpec(cpu, 'TDP (Вт)')) || 0;
-                    const coolerTdp = parseInt(getSpec(product, 'TDP (Вт)')) || 0;
+                    const coolerTdp = parseInt(getSpec(product, 'TDP')) || parseInt(getSpec(product, 'TDP (Вт)')) || 0;
                     if (cpuTdp > 0 && coolerTdp > 0 && coolerTdp < cpuTdp) {
                         warnings.push(`Кулер розрахований на ${coolerTdp}Вт, а CPU споживає ${cpuTdp}Вт`);
                     }
@@ -580,7 +584,18 @@
         // --- Стандартна логіка кошика ---
         function loadCart() {
             const saved = localStorage.getItem('smarttab_cart');
-            if (saved) { cart = JSON.parse(saved); updateCartUI(); }
+            if (saved) {
+                cart = JSON.parse(saved);
+                cart = cart.filter(i => {
+                    const actual = allProducts.find(p => p.id === i.id);
+                    if (actual) {
+                        i.stockCount = actual.stockCount;
+                        if (i.quantity > actual.stockCount) i.quantity = actual.stockCount;
+                    }
+                    return i.quantity > 0;
+                });
+                saveCart();
+            }
         }
 
         function saveCart() {
@@ -592,7 +607,9 @@
             const item = cart.find(i => i.id === id);
             if (item) {
                 const newQty = item.quantity + delta;
-                if (newQty > 0 && newQty <= item.stockCount) { item.quantity = newQty; saveCart(); }
+                const actualProduct = allProducts.find(p => p.id === id);
+                const maxQty = actualProduct ? actualProduct.stockCount : item.stockCount;
+                if (newQty > 0 && newQty <= maxQty) { item.quantity = newQty; saveCart(); }
                 else if (newQty === 0) removeFromCart(id);
             }
         }
@@ -727,6 +744,8 @@
                     btn.innerHTML = 'Оформити замовлення';
                     btn.classList.replace('bg-green-500', 'bg-st-purple');
                 }, 5000);
+
+                loadData();
 
             } catch (e) {
                 alert('Помилка з\'єднання з сервером');

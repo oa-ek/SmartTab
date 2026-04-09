@@ -565,6 +565,7 @@ namespace SmartTab.UI.Controllers
         [Authorize]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 if (request.Items == null || request.Items.Count == 0)
@@ -624,14 +625,21 @@ namespace SmartTab.UI.Controllers
                     oi.OrderId = order.Id;
                     _context.OrderItems.Add(oi);
                 }
-                await _context.SaveChangesAsync(); // OrderItems отримують свої Id
+                await _context.SaveChangesAsync();
 
-                // Оновлюємо склад та прив'язуємо InventoryItems
+                // Оновлюємо кількість на складі та списуємо баланс
                 foreach (var oi in orderItems)
                 {
                     var product = products.First(p => p.Id == oi.ProductId);
                     product.StockCount -= oi.Quantity;
+                }
+                user.Balance -= totalPrice;
+                await _context.SaveChangesAsync();
 
+                // Прив'язуємо InventoryItems (якщо є)
+                foreach (var oi in orderItems)
+                {
+                    var product = products.First(p => p.Id == oi.ProductId);
                     var availableInventory = product.InventoryItems
                         .Where(inv => !inv.IsSold)
                         .Take(oi.Quantity)
@@ -643,15 +651,15 @@ namespace SmartTab.UI.Controllers
                         inv.OrderItemId = oi.Id;
                     }
                 }
+                if (_context.ChangeTracker.HasChanges())
+                    await _context.SaveChangesAsync();
 
-                // Списуємо баланс
-                user.Balance -= totalPrice;
-                await _context.SaveChangesAsync();
-
+                await transaction.CommitAsync();
                 return Ok(new { success = true, orderId = order.Id, newBalance = user.Balance });
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return BadRequest(new { error = $"Помилка: {ex.Message}" });
             }
         }

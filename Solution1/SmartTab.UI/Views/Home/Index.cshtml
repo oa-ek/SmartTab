@@ -210,7 +210,7 @@
         const IS_AUTHENTICATED = @(isAuthenticated ? "true" : "false");
         let allProducts = [], allManufacturers = [], allCategories = [], cart = [];
 
-        document.addEventListener('DOMContentLoaded', () => { loadData(); loadCart(); if (IS_AUTHENTICATED) loadBalance(); });
+        document.addEventListener('DOMContentLoaded', () => { loadData(); if (IS_AUTHENTICATED) loadBalance(); });
 
         function toggleUserMenu() {
             const drop = document.getElementById('user-menu-dropdown');
@@ -226,7 +226,7 @@
                 fetch('/api/products').then(res => res.json()).catch(() => [])
             ]).then(([categories, manufacturers, products]) => {
                 allCategories = categories; allManufacturers = manufacturers; allProducts = products;
-                renderFilters(); applyFilters();
+                renderFilters(); applyFilters(); loadCart();
             });
         }
 
@@ -319,7 +319,19 @@
         // --- Cart Logic ---
         function loadCart() {
             const saved = localStorage.getItem('smarttab_cart');
-            if (saved) { cart = JSON.parse(saved); updateCartUI(); }
+            if (saved) {
+                cart = JSON.parse(saved);
+                // Синхронізуємо stockCount з актуальними даними
+                cart = cart.filter(i => {
+                    const actual = allProducts.find(p => p.id === i.id);
+                    if (actual) {
+                        i.stockCount = actual.stockCount;
+                        if (i.quantity > actual.stockCount) i.quantity = actual.stockCount;
+                    }
+                    return i.quantity > 0;
+                });
+                saveCart();
+            }
         }
 
         function saveCart() {
@@ -333,7 +345,10 @@
                 return;
             }
             const product = allProducts.find(p => p.id === productId);
-            if (!product) return;
+            if (!product || !product.stockCount || product.stockCount <= 0) {
+                alert('Товару немає в наявності!');
+                return;
+            }
             const existing = cart.find(i => i.id === productId);
             if (existing) {
                 if (existing.quantity < product.stockCount) existing.quantity++;
@@ -353,7 +368,9 @@
             const item = cart.find(i => i.id === id);
             if (item) {
                 const newQty = item.quantity + delta;
-                if (newQty > 0 && newQty <= item.stockCount) { item.quantity = newQty; saveCart(); }
+                const actualProduct = allProducts.find(p => p.id === id);
+                const maxQty = actualProduct ? actualProduct.stockCount : item.stockCount;
+                if (newQty > 0 && newQty <= maxQty) { item.quantity = newQty; saveCart(); }
                 else if (newQty === 0) removeFromCart(id);
             }
         }
@@ -466,6 +483,9 @@
                     badge.textContent = data.newBalance.toLocaleString('uk-UA') + ' ₴';
                 }
                 
+                // Перезавантажуємо дані товарів щоб оновити залишки
+                loadData();
+
                 setTimeout(() => {
                     btn.disabled = false;
                     btn.innerHTML = 'Оформити замовлення';
