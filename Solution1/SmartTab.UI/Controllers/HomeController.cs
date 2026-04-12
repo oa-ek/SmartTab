@@ -15,6 +15,7 @@ using SmartTab.Core;
 using SmartTab.Data;
 using SmartTab.UI;
 using SmartTab.UI.Models;
+using SmartTab.UI.Services;
 
 namespace SmartTab.UI.Controllers
 {
@@ -22,11 +23,13 @@ namespace SmartTab.UI.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _environment;
+        private readonly EmailService _emailService;
 
-        public HomeController(AppDbContext context, IWebHostEnvironment environment)
+        public HomeController(AppDbContext context, IWebHostEnvironment environment, EmailService emailService)
         {
             _context = context;
             _environment = environment;
+            _emailService = emailService;
         }
 
         public IActionResult Index() => View();
@@ -655,6 +658,27 @@ namespace SmartTab.UI.Controllers
                     await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                // Відправляємо чек на пошту
+                var receiptItems = orderItems.Select(oi =>
+                {
+                    var product = products.First(p => p.Id == oi.ProductId);
+                    var serials = product.InventoryItems
+                        .Where(inv => inv.OrderItemId == oi.Id)
+                        .Select(inv => inv.SerialNumber)
+                        .ToList();
+                    return new ReceiptItem
+                    {
+                        ProductName = product.Name,
+                        Quantity = oi.Quantity,
+                        UnitPrice = oi.UnitPrice,
+                        SerialNumbers = serials
+                    };
+                }).ToList();
+
+                _ = _emailService.SendOrderReceiptEmailAsync(
+                    user.Email, user.FirstName, order.Id, order.OrderDate, totalPrice, receiptItems);
+
                 return Ok(new { success = true, orderId = order.Id, newBalance = user.Balance });
             }
             catch (Exception ex)

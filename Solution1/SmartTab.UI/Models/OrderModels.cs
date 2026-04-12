@@ -15,3 +15,11 @@ public class UpdateBalanceRequest
 {
     public decimal Balance { get; set; }
 }
+
+public class ReceiptItem
+{
+    public string ProductName { get; set; } = null!;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public List<string> SerialNumbers { get; set; } = new();
+}
