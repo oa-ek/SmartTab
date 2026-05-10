@@ -34,9 +34,10 @@
             100% { transform: rotate(360deg); }
         }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
     </style>
 </head>
 <body class="text-gray-800">
@@ -75,7 +76,7 @@
             </div>
 
             <div id="product-content" class="hidden">
-                <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 md:p-12 overflow-hidden">
+                <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 md:p-12 overflow-hidden mb-12">
                     <div class="flex flex-col lg:flex-row gap-16">
                         <div class="w-full lg:w-1/2 flex items-center justify-center bg-white rounded-3xl p-4">
                             <img id="product-image" src="" alt="" class="max-h-[450px] w-auto object-contain transition-transform duration-500 hover:scale-105">
@@ -114,6 +115,27 @@
                         <div id="specs-table" class="grid grid-cols-1 md:grid-cols-2 gap-x-20 gap-y-0"></div>
                     </div>
                 </div>
+
+                <div id="compatible-products-section" class="hidden mb-12">
+                    <h2 class="text-2xl font-black text-gray-900 mb-6 flex items-center gap-4">
+                        <span class="w-1.5 h-8 bg-green-500 rounded-full"></span>
+                        Сумісні для збірки
+                    </h2>
+                    <div class="relative">
+                        <div id="compatible-products-list" class="flex overflow-x-auto gap-6 pb-6 pt-2 px-2 custom-scrollbar snap-x"></div>
+                    </div>
+                </div>
+
+                <div id="similar-products-section" class="hidden mb-12">
+                    <h2 class="text-2xl font-black text-gray-900 mb-6 flex items-center gap-4">
+                        <span class="w-1.5 h-8 bg-st-purple rounded-full"></span>
+                        Схожі товари
+                    </h2>
+                    <div class="relative">
+                        <div id="similar-products-list" class="flex overflow-x-auto gap-6 pb-6 pt-2 px-2 custom-scrollbar snap-x"></div>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -144,7 +166,7 @@
                 <span>Разом:</span>
                 <span id="cart-total" class="text-2xl text-st-purple font-black text-red-600">0 ₴</span>
             </div>
-            <button onclick="alert('Функціонал замовлення в розробці!')" class="w-full bg-st-purple hover:bg-st-purple-hover text-white py-4 rounded-xl font-black uppercase tracking-wider transition-all shadow-lg shadow-purple-500/30">Оформити замовлення</button>
+            <button onclick="checkout()" id="checkout-btn" class="w-full bg-st-purple hover:bg-st-purple-hover text-white py-4 rounded-xl font-black uppercase tracking-wider transition-all shadow-lg shadow-purple-500/30">Оформити замовлення</button>
         </div>
     </div>
 
@@ -152,6 +174,7 @@
         const IS_AUTHENTICATED = @(isAuthenticated ? "true" : "false");
         let currentProduct = null;
         let cart = [];
+        let allProductsCache = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             const productId = window.location.pathname.split('/').pop();
@@ -161,17 +184,24 @@
 
         async function fetchProductData(id) {
             try {
-                const [productRes, mfgRes] = await Promise.all([
+                const [productRes, mfgRes, allProductsRes] = await Promise.all([
                     fetch(`/api/products/${id}`),
-                    fetch('/api/manufacturers')
+                    fetch('/api/manufacturers'),
+                    fetch('/api/products') 
                 ]);
                 
                 if (!productRes.ok) throw new Error("Товар не знайдено");
                 currentProduct = await productRes.json();
+                
+                if (allProductsRes.ok) {
+                    allProductsCache = await allProductsRes.json();
+                }
+
                 const manufacturers = await mfgRes.json();
                 const mfg = manufacturers.find(m => m.id == currentProduct.manufacturerId);
 
                 renderProduct(currentProduct, mfg);
+                findRelatedProducts(currentProduct);
             } catch (error) {
                 showError(error.message);
             }
@@ -205,7 +235,7 @@
                     specsContainer.innerHTML = entries.map(s => `
                         <div class="flex justify-between py-5 border-b border-gray-50 group hover:bg-gray-50/50 transition-colors px-2">
                             <span class="text-gray-400 text-sm font-bold uppercase tracking-tight">${s.label || s.name || 'Опція'}</span>
-                            <span class="text-gray-900 font-black text-sm uppercase">${s.value}</span>
+                            <span class="text-gray-900 font-black text-sm uppercase text-right ml-4">${s.value}</span>
                         </div>
                     `).join('');
                 } catch (e) { specsContainer.innerHTML = ''; }
@@ -215,7 +245,153 @@
             document.getElementById('product-content').classList.remove('hidden');
         }
 
-        // CART SYSTEM
+        // --- ЛОГІКА ПОШУКУ СУМІСНИХ ТА СХОЖИХ ---
+        function findRelatedProducts(mainProduct) {
+            if (!allProductsCache || allProductsCache.length === 0) return;
+
+            let compatibleList = [];
+            let similarList = [];
+            
+            const mainCat = (mainProduct.categoryName || "").toLowerCase();
+
+            // Допоміжна функція пошуку значень характеристик
+            const getSpecValue = (product, keys) => {
+                let specs = [];
+                try { specs = typeof product.specs === 'string' ? JSON.parse(product.specs) : product.specs; } catch(e){}
+                if (!Array.isArray(specs)) specs = Object.entries(specs || {}).map(([k,v]) => ({name: k, value: v}));
+                
+                for (let s of specs) {
+                    const name = (s.name || s.label || "").toLowerCase();
+                    if (keys.some(k => name.includes(k))) return (s.value || "").toString().trim().toLowerCase();
+                }
+                return null;
+            };
+
+            const mainSocket = getSpecValue(mainProduct, ["сокет", "socket"]);
+            const mainRamType = getSpecValue(mainProduct, ["тип пам'яті", "тип пам", "ddr"]);
+
+            // Перевіряємо, чи має цей товар строгі правила сумісності
+            const hasStrictRules = mainCat.includes("процесор") || mainCat.includes("материнська") || mainCat.includes("пам'ять") || mainCat.includes("озу");
+
+            allProductsCache.forEach(p => {
+                if (p.id === mainProduct.id) return;
+
+                const pCat = (p.categoryName || "").toLowerCase();
+                
+                // 1. Формуємо список СХОЖИХ товарів (це та сама категорія)
+                if (p.categoryId === mainProduct.categoryId) {
+                    similarList.push(p);
+                    return; 
+                }
+
+                // 2. Формуємо список СУМІСНИХ товарів
+                let isCompatible = false;
+                
+                if (hasStrictRules) {
+                    if (mainCat.includes("процесор")) {
+                        // Для процесора шукаємо материнку з таким же сокетом або будь-яке охолодження
+                        if (pCat.includes("материнська") && getSpecValue(p, ["сокет", "socket"]) === mainSocket && mainSocket) isCompatible = true;
+                        if (pCat.includes("охолодження") || pCat.includes("кулер")) isCompatible = true;
+                    } 
+                    else if (mainCat.includes("материнська")) {
+                        // Для материнки шукаємо проц (сокет) та ОЗП (тип пам'яті)
+                        if (pCat.includes("процесор") && getSpecValue(p, ["сокет", "socket"]) === mainSocket && mainSocket) isCompatible = true;
+                        if (pCat.includes("пам'ять") || pCat.includes("озу")) {
+                            const pRam = getSpecValue(p, ["тип пам", "ddr"]);
+                            if (mainRamType && pRam && (mainRamType.includes(pRam) || pRam.includes(mainRamType))) isCompatible = true;
+                        }
+                    } 
+                    else if (mainCat.includes("пам'ять") || mainCat.includes("озу")) {
+                        // Для ОЗП шукаємо материнку з таким же типом
+                        if (pCat.includes("материнська")) {
+                            const pRam = getSpecValue(p, ["тип пам", "ddr"]);
+                            if (mainRamType && pRam && (mainRamType.includes(pRam) || pRam.includes(mainRamType))) isCompatible = true;
+                        }
+                    }
+                } else {
+                    // Якщо товар НЕ має строгих правил (мишка, клавіатура, корпус, монітор, SSD), 
+                    // він автоматично сумісний з будь-якими іншими товарами для збірки!
+                    isCompatible = true;
+                }
+
+                if (isCompatible) {
+                    compatibleList.push(p);
+                }
+            });
+
+            // РЯТУВАЛЬНИЙ КРУГ: Якщо список сумісних все одно порожній (наприклад, це процесор, 
+            // але в базі ще немає материнок під його сокет), просто додаємо інші товари з бази, щоб блок не зникав
+            if (compatibleList.length === 0) {
+                compatibleList = allProductsCache.filter(p => p.categoryId !== mainProduct.categoryId && p.id !== mainProduct.id);
+            }
+
+            // Відмальовуємо блоки
+            renderHorizontalList('compatible', compatibleList);
+            renderHorizontalList('similar', similarList);
+        }
+
+        // Універсальна функція для малювання горизонтального списку товарів
+        function renderHorizontalList(type, list) {
+            const section = document.getElementById(`${type}-products-section`);
+            const container = document.getElementById(`${type}-products-list`);
+            
+            if (!list || list.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            const itemsToRender = list.slice(0, 10); // Показуємо максимум 10 карток
+            
+            container.innerHTML = itemsToRender.map(p => {
+                const isOutOfStock = !p.stockCount || p.stockCount <= 0;
+                const imgUrl = p.imageUrl || '';
+                
+                return `
+                <div class="min-w-[200px] max-w-[200px] bg-white border border-gray-200 rounded-xl p-4 flex flex-col hover:shadow-lg transition-all snap-start group cursor-pointer" onclick="window.location.href='/Home/ProductPage/${p.id}'">
+                    <div class="h-[130px] mb-3 flex items-center justify-center bg-white">
+                        ${imgUrl ? `<img src="${imgUrl}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform">` : `<i class="fas fa-image text-gray-200 text-4xl"></i>`}
+                    </div>
+                    <h4 class="font-bold text-gray-900 text-xs mb-2 line-clamp-2 h-8 group-hover:text-st-purple transition-colors">${p.name}</h4>
+                    <div class="text-[10px] text-gray-400 mb-2 uppercase">${p.categoryName || ''}</div>
+                    <div class="mt-auto flex items-center justify-between pt-2 border-t border-gray-100">
+                        <span class="font-bold text-[#f84147] text-base">${p.price} ₴</span>
+                        <button onclick="event.stopPropagation(); addToCartSimple(${p.id}, ${p.stockCount})" ${isOutOfStock ? 'disabled' : ''} class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-st-purple hover:bg-st-purple hover:text-white transition-colors ${isOutOfStock ? 'opacity-30 cursor-not-allowed' : ''}">
+                            <i class="fas fa-cart-plus text-sm"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            section.classList.remove('hidden');
+        }
+
+        // Швидке додавання з горизонтальних списків
+        function addToCartSimple(productId, stockCount) {
+            if (!IS_AUTHENTICATED) {
+                document.getElementById('auth-modal-overlay').classList.remove('hidden');
+                return;
+            }
+            if (stockCount <= 0) {
+                alert('Товару немає в наявності!');
+                return;
+            }
+            
+            const product = allProductsCache.find(p => p.id === productId);
+            if (!product) return;
+
+            const existing = cart.find(i => i.id === productId);
+            if (existing) {
+                if (existing.quantity < stockCount) existing.quantity++;
+                else { alert('Досягнуто ліміту на складі!'); return; }
+            } else {
+                cart.push({ ...product, quantity: 1, stockCount: stockCount });
+            }
+            
+            saveCart();
+            toggleCart();
+        }
+
+        // --- CART SYSTEM ---
         function loadCart() {
             const saved = localStorage.getItem('smarttab_cart');
             if (saved) { cart = JSON.parse(saved); updateCartUI(); }
@@ -241,7 +417,7 @@
                 cart.push({ ...currentProduct, quantity: 1 });
             }
             saveCart();
-            toggleCart(); // Автоматичне відкриття кошика
+            toggleCart();
         }
 
         function updateQuantity(id, delta) {
@@ -310,6 +486,50 @@
         function closeAuthModal() { document.getElementById('auth-modal-overlay').classList.add('hidden'); }
         function showError(msg) { 
             document.getElementById('loading-state').innerHTML = `<div class="text-red-500 font-bold">${msg}</div><a href="/" class="text-st-purple block mt-4 underline">Повернутись на головну</a>`; 
+        }
+
+        async function checkout() { 
+            if (!IS_AUTHENTICATED) {
+                document.getElementById('auth-modal-overlay').classList.remove('hidden');
+                return;
+            }
+            if (cart.length === 0) return;
+
+            const btn = document.getElementById('checkout-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Обробка...';
+
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: cart.map(i => ({ productId: i.id, quantity: i.quantity }))
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'Помилка оформлення замовлення');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Оформити замовлення';
+                    return;
+                }
+
+                cart = [];
+                saveCart();
+
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Оплачено! Переходимо до чека...';
+                btn.classList.replace('bg-st-purple', 'bg-green-500');
+
+                window.location.href = `/Home/OrderConfirmation?id=${data.orderId}`;
+
+            } catch (e) {
+                alert('Помилка з\'єднання з сервером');
+                btn.disabled = false;
+                btn.innerHTML = 'Оформити замовлення';
+            }
         }
     </script>
 </body>

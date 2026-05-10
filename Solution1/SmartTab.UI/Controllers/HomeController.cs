@@ -15,6 +15,7 @@ using SmartTab.Core;
 using SmartTab.Data;
 using SmartTab.UI;
 using SmartTab.UI.Models;
+using SmartTab.UI.Services;
 
 namespace SmartTab.UI.Controllers
 {
@@ -22,11 +23,13 @@ namespace SmartTab.UI.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _environment;
+        private readonly EmailService _emailService;
 
-        public HomeController(AppDbContext context, IWebHostEnvironment environment)
+        public HomeController(AppDbContext context, IWebHostEnvironment environment, EmailService emailService)
         {
             _context = context;
             _environment = environment;
+            _emailService = emailService;
         }
 
         public IActionResult Index() => View();
@@ -568,6 +571,9 @@ namespace SmartTab.UI.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                if (User.IsInRole("Admin"))
+                    return BadRequest(new { error = "Адміністратор не може здійснювати покупки" });
+
                 if (request.Items == null || request.Items.Count == 0)
                     return BadRequest(new { error = "Кошик порожній" });
 
@@ -575,14 +581,12 @@ namespace SmartTab.UI.Controllers
                 var user = await _context.Users.FindAsync(userId);
                 if (user == null) return NotFound(new { error = "Користувача не знайдено" });
 
-                // Завантажуємо продукти з інвентарем
                 var productIds = request.Items.Select(i => i.ProductId).ToList();
                 var products = await _context.Products
                     .Include(p => p.InventoryItems.Where(inv => !inv.IsSold))
                     .Where(p => productIds.Contains(p.Id))
                     .ToListAsync();
 
-                // Перевіряємо наявність кожного товару
                 decimal totalPrice = 0;
                 var orderItems = new List<OrderItem>();
 
@@ -636,7 +640,7 @@ namespace SmartTab.UI.Controllers
                 user.Balance -= totalPrice;
                 await _context.SaveChangesAsync();
 
-                // Прив'язуємо InventoryItems (якщо є)
+                // Прив'язуємо InventoryItems (генеруємо якщо не вистачає)
                 foreach (var oi in orderItems)
                 {
                     var product = products.First(p => p.Id == oi.ProductId);
@@ -644,6 +648,23 @@ namespace SmartTab.UI.Controllers
                         .Where(inv => !inv.IsSold)
                         .Take(oi.Quantity)
                         .ToList();
+
+                    // Якщо InventoryItems не вистачає — догенеровуємо
+                    var missing = oi.Quantity - availableInventory.Count;
+                    if (missing > 0)
+                    {
+                        for (int i = 0; i < missing; i++)
+                        {
+                            var newInv = new InventoryItem
+                            {
+                                ProductId = product.Id,
+                                SerialNumber = $"SN-{product.Name.Replace(" ", "").ToUpper()}-{Guid.NewGuid().ToString().Substring(0, 6)}",
+                                IsSold = false
+                            };
+                            _context.InventoryItems.Add(newInv);
+                            availableInventory.Add(newInv);
+                        }
+                    }
 
                     foreach (var inv in availableInventory)
                     {
@@ -655,6 +676,27 @@ namespace SmartTab.UI.Controllers
                     await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                // Відправляємо чек на пошту
+                var receiptItems = orderItems.Select(oi =>
+                {
+                    var product = products.First(p => p.Id == oi.ProductId);
+                    var serials = product.InventoryItems
+                        .Where(inv => inv.OrderItemId == oi.Id)
+                        .Select(inv => inv.SerialNumber)
+                        .ToList();
+                    return new ReceiptItem
+                    {
+                        ProductName = product.Name,
+                        Quantity = oi.Quantity,
+                        UnitPrice = oi.UnitPrice,
+                        SerialNumbers = serials
+                    };
+                }).ToList();
+
+                _ = _emailService.SendOrderReceiptEmailAsync(
+                    user.Email, user.FirstName, order.Id, order.OrderDate, totalPrice, receiptItems);
+
                 return Ok(new { success = true, orderId = order.Id, newBalance = user.Balance });
             }
             catch (Exception ex)
