@@ -1,0 +1,272 @@
+@{
+    Layout = null;
+    var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
+    var userName = User.Identity?.Name ?? "";
+}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Замовлення - SmartTab Store</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --st-purple: #6f00ff; --st-purple-hover: #5b00d6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; }
+        .text-st-purple { color: var(--st-purple); }
+        .bg-st-purple { background-color: var(--st-purple); }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col">
+
+    <header class="bg-[#212121] border-b border-gray-900 text-white">
+        <div class="max-w-[1400px] mx-auto px-4 h-[70px] flex items-center justify-between">
+            <a href="/" class="flex items-center text-st-purple text-2xl font-bold tracking-tight">
+                <i class="fas fa-layer-group mr-2 text-2xl"></i>
+                <span>SmartTab</span>
+            </a>
+            <div class="flex items-center gap-4">
+                <a href="/" class="text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> До каталогу
+                </a>
+                <a href="/Account/Profile" class="text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                    <i class="fas fa-user"></i> Профіль
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-10 px-4">
+        <div id="loading-state" class="max-w-4xl mx-auto text-center py-20">
+            <div class="w-10 h-10 border-4 border-gray-200 border-t-[#6f00ff] rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-gray-400">Завантаження замовлення...</p>
+        </div>
+
+        <div id="order-content" class="max-w-4xl mx-auto hidden">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+                <div>
+                    <h1 class="text-2xl font-black text-gray-900">
+                        Замовлення <span id="order-number" class="text-st-purple">#</span>
+                    </h1>
+                    <p id="order-date" class="text-sm text-gray-400 mt-1"></p>
+                </div>
+                <span id="order-status" class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold"></span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Items -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Items card -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                            <h2 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i class="fas fa-box text-st-purple"></i> Товари
+                            </h2>
+                        </div>
+                        <div id="order-items" class="divide-y divide-gray-50">
+                        </div>
+                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                            <span class="font-bold text-gray-600">Разом:</span>
+                            <span id="order-total" class="text-xl font-black text-gray-900"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Info -->
+                <div class="space-y-6">
+                    <!-- Payment -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100">
+                            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                <i class="fas fa-credit-card text-st-purple"></i> Оплата
+                            </h3>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-500">Сума замовлення</span>
+                                <span id="payment-amount" class="text-sm font-bold text-gray-900"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-500">Спосіб оплати</span>
+                                <span class="text-sm font-bold text-gray-900">Банківська карта</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-500">Статус оплати</span>
+                                <span id="payment-status" class="text-sm font-bold"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buyer -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100">
+                            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                <i class="fas fa-user text-st-purple"></i> Покупець
+                            </h3>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-500">Ім'я</span>
+                                <span id="buyer-name" class="text-sm font-bold text-gray-900"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-500">Email</span>
+                                <span id="buyer-email" class="text-sm font-bold text-gray-900"></span>
+                            </div>
+                            <div id="buyer-phone-row" class="flex justify-between hidden">
+                                <span class="text-sm text-gray-500">Телефон</span>
+                                <span id="buyer-phone" class="text-sm font-bold text-gray-900"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col gap-3">
+                        <a href="/Account/Profile" class="flex items-center justify-center gap-2 w-full py-3 bg-st-purple text-white font-bold rounded-xl hover:opacity-90 transition-opacity">
+                            <i class="fas fa-list"></i> Мої замовлення
+                        </a>
+                        <a href="/" class="flex items-center justify-center gap-2 w-full py-3 border-2 border-gray-200 text-gray-600 font-bold rounded-xl hover:border-gray-300 transition-colors">
+                            <i class="fas fa-shopping-bag"></i> Продовжити покупки
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-state" class="max-w-4xl mx-auto hidden text-center py-20">
+            <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+            <p id="error-message" class="text-red-500 font-bold mb-4"></p>
+            <a href="/" class="text-st-purple underline">Повернутись на головну</a>
+        </div>
+    </main>
+
+    <script>
+        let currentOrderId = null;
+        let pollInterval = null;
+
+        document.addEventListener('DOMContentLoaded', loadOrder);
+
+        async function loadOrder() {
+            const params = new URLSearchParams(window.location.search);
+            currentOrderId = params.get('id') || window.location.pathname.split('/').pop();
+
+            if (!currentOrderId || isNaN(currentOrderId)) {
+                showError('Невірний ID замовлення');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/orders/${currentOrderId}`);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'Замовлення не знайдено');
+                }
+
+                const order = await res.json();
+                renderOrder(order);
+
+                if (order.status === 'Очікує оплати') {
+                    startPaymentPolling();
+                }
+            } catch (e) {
+                showError(e.message);
+            }
+        }
+
+        function startPaymentPolling() {
+            const statusEl = document.getElementById('order-status');
+            statusEl.innerHTML += ' <i class="fas fa-spinner fa-spin ml-1 text-xs"></i>';
+
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/orders/${currentOrderId}/check-payment`, { method: 'POST' });
+                    if (!res.ok) return;
+                    const data = await res.json();
+
+                    if (data.changed) {
+                        clearInterval(pollInterval);
+                        location.reload();
+                    }
+                } catch (e) {}
+            }, 3000);
+
+            setTimeout(() => {
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    const el = document.getElementById('order-status');
+                    el.querySelector('.fa-spinner')?.remove();
+                }
+            }, 5 * 60 * 1000);
+        }
+
+        function renderOrder(order) {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('order-content').classList.remove('hidden');
+
+            document.getElementById('order-number').textContent = `#${order.id}`;
+            document.title = `Замовлення #${order.id} - SmartTab Store`;
+
+            const date = new Date(order.orderDate).toLocaleString('uk-UA', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            document.getElementById('order-date').textContent = date;
+
+            // Status badge
+            const statusEl = document.getElementById('order-status');
+            const statusMap = {
+                'Оплачено': { bg: 'bg-green-100', text: 'text-green-700', icon: 'fa-check-circle' },
+                'Очікує оплати': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fa-clock' },
+                'Скасовано': { bg: 'bg-red-100', text: 'text-red-700', icon: 'fa-times-circle' },
+                'Повернено': { bg: 'bg-gray-100', text: 'text-gray-700', icon: 'fa-undo' }
+            };
+            const s = statusMap[order.status] || { bg: 'bg-gray-100', text: 'text-gray-600', icon: 'fa-info-circle' };
+            statusEl.className = `inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold ${s.bg} ${s.text}`;
+            statusEl.innerHTML = `<i class="fas ${s.icon}"></i> ${order.status}`;
+
+            // Payment
+            document.getElementById('payment-amount').textContent = `${order.price.toLocaleString('uk-UA')} ₴`;
+            document.getElementById('order-total').textContent = `${order.price.toLocaleString('uk-UA')} ₴`;
+
+            const payStatusEl = document.getElementById('payment-status');
+            payStatusEl.textContent = order.status;
+            payStatusEl.className = `text-sm font-bold ${order.status === 'Оплачено' ? 'text-green-600' : order.status === 'Очікує оплати' ? 'text-yellow-600' : 'text-red-600'}`;
+
+            // Buyer
+            document.getElementById('buyer-name').textContent = order.userName;
+            document.getElementById('buyer-email').textContent = order.userEmail;
+            if (order.userPhone) {
+                document.getElementById('buyer-phone').textContent = order.userPhone;
+                document.getElementById('buyer-phone-row').classList.remove('hidden');
+            }
+
+            // Items
+            const itemsContainer = document.getElementById('order-items');
+            itemsContainer.innerHTML = order.items.map(item => `
+                <div class="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
+                    <div class="w-16 h-16 bg-white rounded-lg border border-gray-100 flex items-center justify-center shrink-0 p-1">
+                        ${item.imageUrl
+                            ? `<img src="${item.imageUrl}" class="max-h-full max-w-full object-contain">`
+                            : `<i class="fas fa-image text-gray-200 text-xl"></i>`}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-gray-900 text-sm truncate">${item.name}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">${item.quantity} шт. × ${item.unitPrice.toLocaleString('uk-UA')} ₴</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="font-black text-gray-900">${item.total.toLocaleString('uk-UA')} ₴</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showError(msg) {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('error-state').classList.remove('hidden');
+            document.getElementById('error-message').textContent = msg;
+        }
+    </script>
+</body>
+</html>

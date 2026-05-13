@@ -649,10 +649,15 @@
                 cart = [];
                 saveCart();
 
-                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Оплачено! Переходимо до чека...';
-                btn.classList.replace('bg-st-purple', 'bg-green-500');
-
-                window.location.href = `/Home/OrderConfirmation?id=${data.orderId}`;
+                if (data.pageUrl) {
+                    btn.innerHTML = '<i class="fas fa-check mr-2"></i> Переходимо до оплати...';
+                    btn.classList.replace('bg-st-purple', 'bg-green-500');
+                    window.location.href = data.pageUrl;
+                } else {
+                    btn.innerHTML = '<i class="fas fa-check mr-2"></i> Замовлення створено!';
+                    btn.classList.replace('bg-st-purple', 'bg-green-500');
+                    window.location.href = `/Home/OrderConfirmation?id=${data.orderId}`;
+                }
 
             } catch (e) {
                 alert('Помилка з\'єднання з сервером');

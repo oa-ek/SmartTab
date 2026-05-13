@@ -72,4 +72,32 @@ public class MonobankService : IMonobankService
             return null;
         }
     }
+
+    public async Task<string?> GetInvoiceStatusAsync(string invoiceId)
+    {
+        try
+        {
+            var httpRequest = new HttpRequestMessage(HttpMethod.Get,
+                $"api/merchant/invoice/status?invoiceId={invoiceId}");
+            httpRequest.Headers.Add("X-Token", _token);
+
+            var response = await _httpClient.SendAsync(httpRequest);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Monobank status check failed: {StatusCode} - {Body}",
+                    response.StatusCode, body);
+                return null;
+            }
+
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.GetProperty("status").GetString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking Monobank invoice status");
+            return null;
+        }
+    }
 }
