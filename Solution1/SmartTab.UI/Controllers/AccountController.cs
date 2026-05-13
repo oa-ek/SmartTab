@@ -81,7 +81,6 @@ public class AccountController : Controller
         }
         catch (Exception ex)
         {
-            // У разі падіння сервера повертаємо текст помилки на фронтенд
             return Json(new { success = false, error = $"[DEBUG ПОМИЛКА]: {ex.InnerException?.Message ?? ex.Message}" });
         }
     }
@@ -245,17 +244,15 @@ public class AccountController : Controller
 
             if (user == null)
             {
-                // Не розкриваємо чи існує email — завжди показуємо успіх
+               
                 return Json(new { success = true });
             }
 
-            // Генеруємо токен
             var token = Guid.NewGuid().ToString("N");
             user.ResetToken = token;
             user.ResetTokenExpiry = DateTime.UtcNow.AddHours(1);
             await _context.SaveChangesAsync();
 
-            // Формуємо посилання
             var resetLink = Url.Action("ResetPassword", "Account",
                 new { token }, Request.Scheme);
 
@@ -329,7 +326,7 @@ public class AccountController : Controller
         return View();
     }
 
-    // ─── Хелпери ───────────────────────────────────────────────
+   
 
     private async Task SignInUser(User user, string roleName, bool isPersistent)
     {

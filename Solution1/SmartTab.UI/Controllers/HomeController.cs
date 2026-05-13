@@ -51,6 +51,9 @@ namespace SmartTab.UI.Controllers
         public IActionResult ProductPage(int id) => View();
         public IActionResult ConfigPC() => View();
 
+        [Authorize]
+        public IActionResult OrderConfirmation(int id) => View();
+
         [Authorize(Roles = "Admin")]
         public IActionResult Admin() => View();
 
@@ -657,14 +660,12 @@ namespace SmartTab.UI.Controllers
                 var user = await _context.Users.FindAsync(userId);
                 if (user == null) return NotFound(new { error = "Користувача не знайдено" });
 
-                // Завантажуємо продукти з інвентарем
                 var productIds = request.Items.Select(i => i.ProductId).ToList();
                 var products = await _context.Products
                     .Include(p => p.InventoryItems.Where(inv => !inv.IsSold))
                     .Where(p => productIds.Contains(p.Id))
                     .ToListAsync();
 
-                // Перевіряємо наявність кожного товару
                 decimal totalPrice = 0;
                 var orderItems = new List<OrderItem>();
 
@@ -713,7 +714,6 @@ namespace SmartTab.UI.Controllers
                 }
                 await _context.SaveChangesAsync();
 
-                // Створюємо інвойс Monobank
                 var basketItems = orderItems.Select(oi =>
                 {
                     var product = products.First(p => p.Id == oi.ProductId);
@@ -728,7 +728,7 @@ namespace SmartTab.UI.Controllers
                 }).ToList();
 
                 var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                var redirectUrl = $"{baseUrl}/Account/Profile?order={order.Id}";
+                var redirectUrl = $"{baseUrl}/Home/OrderConfirmation?id={order.Id}";
                 var webHookUrl = $"{baseUrl}/api/monobank/webhook";
 
                 var invoice = await _monobankService.CreateInvoiceAsync(
@@ -745,7 +745,6 @@ namespace SmartTab.UI.Controllers
                     return BadRequest(new { error = "Не вдалося створити рахунок для оплати. Спробуйте пізніше." });
                 }
 
-                // Зберігаємо invoiceId
                 order.MonobankInvoiceId = invoice.InvoiceId;
                 await _context.SaveChangesAsync();
 
@@ -760,7 +759,6 @@ namespace SmartTab.UI.Controllers
             }
         }
 
-        // POST: /api/monobank/webhook — callback від Monobank після оплати
         [HttpPost("api/monobank/webhook")]
         [AllowAnonymous]
         public async Task<IActionResult> MonobankWebhook([FromBody] MonobankWebhookPayload payload)
@@ -777,84 +775,9 @@ namespace SmartTab.UI.Controllers
                 return Ok();
 
             if (payload.Status == "success" && order.Status == "Очікує оплати")
-            {
-                order.Status = "Оплачено";
-
-                var productIds = order.OrderItems.Select(oi => oi.ProductId).ToList();
-                var products = await _context.Products
-                    .Include(p => p.InventoryItems.Where(inv => !inv.IsSold))
-                    .Where(p => productIds.Contains(p.Id))
-                    .ToListAsync();
-
-                foreach (var oi in order.OrderItems)
-                {
-                    var product = products.First(p => p.Id == oi.ProductId);
-                    var availableInventory = product.InventoryItems
-                        .Where(inv => !inv.IsSold)
-                        .Take(oi.Quantity)
-                        .ToList();
-
-                    var missing = oi.Quantity - availableInventory.Count;
-                    if (missing > 0)
-                    {
-                        for (int i = 0; i < missing; i++)
-                        {
-                            var newInv = new InventoryItem
-                            {
-                                ProductId = product.Id,
-                                SerialNumber = $"SN-{product.Name.Replace(" ", "").ToUpper()}-{Guid.NewGuid().ToString().Substring(0, 6)}",
-                                IsSold = false
-                            };
-                            _context.InventoryItems.Add(newInv);
-                            availableInventory.Add(newInv);
-                        }
-                    }
-
-                    foreach (var inv in availableInventory)
-                    {
-                        inv.IsSold = true;
-                        inv.OrderItemId = oi.Id;
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-
-                var receiptItems = order.OrderItems.Select(oi =>
-                {
-                    var product = products.First(p => p.Id == oi.ProductId);
-                    var serials = product.InventoryItems
-                        .Where(inv => inv.OrderItemId == oi.Id)
-                        .Select(inv => inv.SerialNumber)
-                        .ToList();
-                    return new ReceiptItem
-                    {
-                        ProductName = product.Name,
-                        Quantity = oi.Quantity,
-                        UnitPrice = oi.UnitPrice,
-                        SerialNumbers = serials
-                    };
-                }).ToList();
-
-                _ = _emailService.SendOrderReceiptEmailAsync(
-                    order.User.Email, order.User.FirstName, order.Id, order.OrderDate, order.Price, receiptItems);
-            }
+                await ProcessPaymentSuccess(order);
             else if (payload.Status == "failure" || payload.Status == "reversed")
-            {
-                order.Status = payload.Status == "reversed" ? "Повернено" : "Скасовано";
-
-                var productIds = order.OrderItems.Select(oi => oi.ProductId).ToList();
-                var products = await _context.Products
-                    .Where(p => productIds.Contains(p.Id))
-                    .ToListAsync();
-
-                foreach (var oi in order.OrderItems)
-                {
-                    var product = products.First(p => p.Id == oi.ProductId);
-                    product.StockCount += oi.Quantity;
-                }
-
-                await _context.SaveChangesAsync();
-            }
+                await ProcessPaymentFailure(order, payload.Status == "reversed");
 
             return Ok();
         }
@@ -887,6 +810,79 @@ namespace SmartTab.UI.Controllers
                 .ToListAsync();
 
             return Ok(orders);
+        }
+
+        // POST: /api/orders/{id}/check-payment — перевірка статусу оплати через Monobank
+        [HttpPost("api/orders/{id}/check-payment")]
+        [Authorize]
+        public async Task<IActionResult> CheckPaymentStatus(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.User)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null) return NotFound();
+            if (order.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+            if (order.Status != "Очікує оплати" || string.IsNullOrEmpty(order.MonobankInvoiceId))
+                return Ok(new { status = order.Status, changed = false });
+
+            var monobankStatus = await _monobankService.GetInvoiceStatusAsync(order.MonobankInvoiceId);
+            if (monobankStatus == null)
+                return Ok(new { status = order.Status, changed = false });
+
+            if (monobankStatus == "success")
+            {
+                await ProcessPaymentSuccess(order);
+                return Ok(new { status = "Оплачено", changed = true });
+            }
+            else if (monobankStatus == "failure" || monobankStatus == "reversed")
+            {
+                await ProcessPaymentFailure(order, monobankStatus == "reversed");
+                return Ok(new { status = order.Status, changed = true });
+            }
+
+            return Ok(new { status = order.Status, changed = false });
+        }
+
+        // GET: /api/orders/{id} — деталі конкретного замовлення
+        [HttpGet("api/orders/{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetOrder(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.User)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null) return NotFound(new { error = "Замовлення не знайдено" });
+
+            if (order.UserId != userId && !User.IsInRole("Admin"))
+                return Forbid();
+
+            var items = order.OrderItems.Select(oi => new
+            {
+                oi.Product.Name,
+                oi.Product.ImageUrl,
+                oi.Quantity,
+                oi.UnitPrice,
+                Total = oi.Quantity * oi.UnitPrice
+            }).ToList();
+
+            return Ok(new
+            {
+                order.Id,
+                order.OrderDate,
+                order.Price,
+                order.Status,
+                UserName = $"{order.User.LastName} {order.User.FirstName}",
+                UserEmail = order.User.Email,
+                UserPhone = order.User.PhoneNumber,
+                Items = items
+            });
         }
 
         // GET: /api/users (Admin only)
@@ -924,6 +920,84 @@ namespace SmartTab.UI.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true });
+        }
+
+        private async Task ProcessPaymentSuccess(Order order)
+        {
+            order.Status = "Оплачено";
+
+            var productIds = order.OrderItems.Select(oi => oi.ProductId).ToList();
+            var products = await _context.Products
+                .Include(p => p.InventoryItems.Where(inv => !inv.IsSold))
+                .Where(p => productIds.Contains(p.Id))
+                .ToListAsync();
+
+            foreach (var oi in order.OrderItems)
+            {
+                var product = products.First(p => p.Id == oi.ProductId);
+                var availableInventory = product.InventoryItems
+                    .Where(inv => !inv.IsSold)
+                    .Take(oi.Quantity)
+                    .ToList();
+
+                var missing = oi.Quantity - availableInventory.Count;
+                for (int i = 0; i < missing; i++)
+                {
+                    var newInv = new InventoryItem
+                    {
+                        ProductId = product.Id,
+                        SerialNumber = $"SN-{product.Name.Replace(" ", "").ToUpper()}-{Guid.NewGuid().ToString().Substring(0, 6)}",
+                        IsSold = false
+                    };
+                    _context.InventoryItems.Add(newInv);
+                    availableInventory.Add(newInv);
+                }
+
+                foreach (var inv in availableInventory)
+                {
+                    inv.IsSold = true;
+                    inv.OrderItemId = oi.Id;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            var receiptItems = order.OrderItems.Select(oi =>
+            {
+                var product = products.First(p => p.Id == oi.ProductId);
+                var serials = product.InventoryItems
+                    .Where(inv => inv.OrderItemId == oi.Id)
+                    .Select(inv => inv.SerialNumber)
+                    .ToList();
+                return new ReceiptItem
+                {
+                    ProductName = product.Name,
+                    Quantity = oi.Quantity,
+                    UnitPrice = oi.UnitPrice,
+                    SerialNumbers = serials
+                };
+            }).ToList();
+
+            _ = _emailService.SendOrderReceiptEmailAsync(
+                order.User.Email, order.User.FirstName, order.Id, order.OrderDate, order.Price, receiptItems);
+        }
+
+        private async Task ProcessPaymentFailure(Order order, bool isReversed)
+        {
+            order.Status = isReversed ? "Повернено" : "Скасовано";
+
+            var productIds = order.OrderItems.Select(oi => oi.ProductId).ToList();
+            var products = await _context.Products
+                .Where(p => productIds.Contains(p.Id))
+                .ToListAsync();
+
+            foreach (var oi in order.OrderItems)
+            {
+                var product = products.First(p => p.Id == oi.ProductId);
+                product.StockCount += oi.Quantity;
+            }
+
+            await _context.SaveChangesAsync();
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

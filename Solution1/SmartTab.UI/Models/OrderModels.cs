@@ -18,3 +18,11 @@ public class ReceiptItem
     public decimal UnitPrice { get; set; }
     public List<string> SerialNumbers { get; set; } = new();
 }
+
+public class ReceiptItem
+{
+    public string ProductName { get; set; } = null!;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public List<string> SerialNumbers { get; set; } = new();
+}
