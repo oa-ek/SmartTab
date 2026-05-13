@@ -49,4 +49,44 @@ public class CurrencyApiService : ICurrencyApiService
         return rates?.FirstOrDefault(r =>
             r.CurrencyAbbreviation.Equals(currencyCode, StringComparison.OrdinalIgnoreCase))?.Rate;
     }
+
+    public async Task<decimal?> GetRateWithFallbackAsync(string currencyCode)
+    {
+        var directRate = await GetRateAsync(currencyCode);
+        if (directRate.HasValue) return directRate;
+
+        var cacheKey = $"fallback_rate_{currencyCode.ToUpper()}";
+        if (_cache.TryGetValue(cacheKey, out decimal cachedRate))
+            return cachedRate;
+
+        try
+        {
+            var usdToUah = await GetRateAsync("USD");
+            if (!usdToUah.HasValue) return null;
+
+            var response = await _httpClient.GetAsync(
+                $"https://open.er-api.com/v6/latest/USD");
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            var rates = doc.RootElement.GetProperty("rates");
+
+            if (!rates.TryGetProperty(currencyCode.ToUpper(), out var targetRate))
+                return null;
+
+            var usdToTarget = targetRate.GetDecimal();
+            if (usdToTarget == 0) return null;
+
+            var rateToUah = usdToUah.Value / usdToTarget;
+            _cache.Set(cacheKey, rateToUah, TimeSpan.FromMinutes(30));
+
+            return rateToUah;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Fallback currency conversion failed for {Code}", currencyCode);
+            return null;
+        }
+    }
 }

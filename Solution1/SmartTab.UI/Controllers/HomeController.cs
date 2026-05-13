@@ -142,7 +142,7 @@ namespace SmartTab.UI.Controllers
                     var countryCurrencyCode = country.Currencies?.Keys.FirstOrDefault();
                     if (!string.IsNullOrEmpty(countryCurrencyCode) && countryCurrencyCode != "UAH")
                     {
-                        var localRate = await _currencyService.GetRateAsync(countryCurrencyCode);
+                        var localRate = await _currencyService.GetRateWithFallbackAsync(countryCurrencyCode);
                         if (localRate.HasValue)
                         {
                             vm.ManufacturerCurrencyCode = countryCurrencyCode;

@@ -6,4 +6,5 @@ public interface ICurrencyApiService
 {
     Task<List<NbuCurrencyDto>?> GetExchangeRatesAsync();
     Task<decimal?> GetRateAsync(string currencyCode);
+    Task<decimal?> GetRateWithFallbackAsync(string currencyCode);
 }
