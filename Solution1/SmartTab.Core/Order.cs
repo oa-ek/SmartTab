@@ -12,6 +12,8 @@ namespace SmartTab.Core
         public decimal Price { get; set; }
         public string? Status { get; set; }
 
+        public string? MonobankInvoiceId { get; set; }
+
         public int UserId { get; set; }
         public User User { get; set; } = null!;
 

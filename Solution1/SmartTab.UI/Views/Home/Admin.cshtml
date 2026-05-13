@@ -165,6 +165,8 @@
                             <input type="hidden" id="editManufacturerId" value="">
                             <input type="text" id="manufacturerNameInput" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Назва виробника">
                             <textarea id="manufacturerDescInput" rows="2" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Опис виробника (необов'язково)"></textarea>
+                            <input type="text" id="manufacturerWebsiteInput" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Сайт виробника (необов'язково)">
+                            <input type="text" id="manufacturerCountryInput" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Країна виробника (англ., напр. United States)">
                             <div class="flex gap-2">
                                 <button type="button" id="manufacturerSubmitBtn" onclick="addManufacturer()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 rounded transition-colors text-sm">
                                     Зберегти виробника
@@ -178,15 +180,6 @@
                             <div id="manufacturers-list" class="space-y-1 max-h-[200px] overflow-y-auto custom-scrollbar pr-2 text-sm"></div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded shadow-sm border border-gray-100 p-5 mb-8">
-                <h2 class="text-sm font-bold mb-4 text-gray-900 flex items-center">
-                    <i class="fas fa-wallet text-st-purple mr-2"></i> Керування балансом користувачів
-                </h2>
-                <div id="users-list" class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 text-sm">
-                    <div class="text-gray-400 text-center py-4">Завантаження...</div>
                 </div>
             </div>
 
@@ -283,7 +276,6 @@
         let allProducts = [];
         let allCategories = [];
         let allManufacturers = [];
-        let allUsers = [];
 
         document.addEventListener('DOMContentLoaded', loadData);
 
@@ -713,19 +705,16 @@
             Promise.all([
                 fetch('/api/categories').then(res => res.json()).catch(() => []),
                 fetch('/api/manufacturers').then(res => res.json()).catch(() => []),
-                fetch('/api/products').then(res => res.json()).catch(() => []),
-                fetch('/api/users').then(res => res.json()).catch(() => [])
-            ]).then(([categories, manufacturers, products, users]) => {
+                fetch('/api/products').then(res => res.json()).catch(() => [])
+            ]).then(([categories, manufacturers, products]) => {
                 allCategories = categories.map(c => ({...c, productCount: products.filter(p => p.categoryId == c.id).length}));
                 allManufacturers = manufacturers.map(m => ({...m, productCount: products.filter(p => p.manufacturerId == m.id).length}));
                 allProducts = products;
-                allUsers = users;
 
                 renderCheckboxes();
                 renderCategoryList();
                 renderManufacturerList();
                 renderProducts(allProducts);
-                renderUsersList(allUsers);
             });
         }
 
@@ -1084,6 +1073,8 @@
             const fd = new FormData(); 
             fd.append('name', name);
             fd.append('description', document.getElementById('manufacturerDescInput').value.trim());
+            fd.append('websiteUrl', document.getElementById('manufacturerWebsiteInput').value.trim());
+            fd.append('country', document.getElementById('manufacturerCountryInput').value.trim());
             try {
                 await fetch('/api/manufacturers', {method: 'POST', body: fd});
                 resetManufacturerForm(); loadData();
@@ -1096,6 +1087,8 @@
             document.getElementById('editManufacturerId').value = mfg.id;
             document.getElementById('manufacturerNameInput').value = mfg.name;
             document.getElementById('manufacturerDescInput').value = mfg.description || '';
+            document.getElementById('manufacturerWebsiteInput').value = mfg.websiteUrl || '';
+            document.getElementById('manufacturerCountryInput').value = mfg.country || '';
             document.getElementById('manufacturerSubmitBtn').innerText = 'Оновити';
             document.getElementById('manufacturerSubmitBtn').onclick = updateManufacturer;
             document.getElementById('manufacturerCancelBtn').classList.remove('hidden');
@@ -1108,6 +1101,8 @@
             const fd = new FormData(); 
             fd.append('name', name);
             fd.append('description', document.getElementById('manufacturerDescInput').value.trim());
+            fd.append('websiteUrl', document.getElementById('manufacturerWebsiteInput').value.trim());
+            fd.append('country', document.getElementById('manufacturerCountryInput').value.trim());
             try {
                 await fetch('/api/manufacturers/'+id, {method: 'PUT', body: fd});
                 resetManufacturerForm(); loadData();
@@ -1127,58 +1122,6 @@
             document.getElementById('manufacturerCancelBtn').classList.add('hidden');
         }
 
-        // --- Керування балансом користувачів ---
-        function renderUsersList(users) {
-            const container = document.getElementById('users-list');
-            if (!users || users.length === 0) {
-                container.innerHTML = '<div class="text-gray-400 text-center py-4">Користувачів не знайдено</div>';
-                return;
-            }
-            container.innerHTML = users.map(u => `
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100" id="user-row-${u.id}">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-st-purple/10 rounded-full flex items-center justify-center shrink-0">
-                            <i class="fas ${u.role === 'Admin' ? 'fa-shield-alt text-purple-600' : 'fa-user text-gray-400'} text-xs"></i>
-                        </div>
-                        <div>
-                            <div class="font-bold text-gray-800">${u.lastName} ${u.firstName}</div>
-                            <div class="text-xs text-gray-400">${u.email} · <span class="${u.role === 'Admin' ? 'text-purple-600' : 'text-gray-500'}">${u.role}</span></div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg overflow-hidden">
-                            <input type="number" id="balance-input-${u.id}" value="${u.balance}" step="1000" min="0"
-                                   class="w-28 text-right text-sm font-bold px-2 py-1.5 border-0 focus:ring-0 outline-none" />
-                            <span class="text-xs text-gray-400 pr-2">₴</span>
-                        </div>
-                        <button onclick="updateBalance(${u.id})" class="bg-st-purple hover:bg-st-purple-hover text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
-                            <i class="fas fa-save"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function updateBalance(userId) {
-            const input = document.getElementById('balance-input-' + userId);
-            const newBalance = parseFloat(input.value);
-            if (isNaN(newBalance) || newBalance < 0) { alert('Невірне значення балансу'); return; }
-
-            try {
-                const res = await fetch('/api/users/' + userId + '/balance', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ balance: newBalance })
-                });
-                if (!res.ok) { const d = await res.json(); alert(d.error || 'Помилка'); return; }
-
-                const row = document.getElementById('user-row-' + userId);
-                row.classList.add('ring-2', 'ring-green-400');
-                setTimeout(() => row.classList.remove('ring-2', 'ring-green-400'), 1500);
-            } catch (e) {
-                alert('Помилка з\'єднання');
-            }
-        }
     </script>
 </body>
 </html>

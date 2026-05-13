@@ -70,7 +70,6 @@
                     
                     @if (isAuthenticated)
                     {
-                        <span id="user-balance-badge" class="text-xs font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full hidden"></span>
                         <div class="relative" id="user-menu-wrapper">
                             <button onclick="toggleUserMenu()" class="flex items-center gap-2 text-white hover:text-st-purple transition-colors">
                                 <i class="fas fa-user-circle text-xl text-st-purple"></i>
@@ -216,8 +215,7 @@
         let currentModalSlotId = null;
 
         document.addEventListener('DOMContentLoaded', () => { 
-            loadData(); 
-            if (IS_AUTHENTICATED) loadBalance();
+            loadData();
         });
 
         async function loadData() {
@@ -279,7 +277,7 @@
                                 <div class="font-medium text-gray-500">Не вибрано</div>
                             </div>
                         </div>
-                        <button onclick="openSelectionModal('${slot.id}')" class="bg-st-purple/10 text-st-purple px-5 py-2.5 rounded-xl font-bold hover:bg-st-purple hover:text-white transition-all text-sm uppercase tracking-wide">
+                        <button onclick="openSelectionModal('${slot.id}')" class="bg-st-purple/10 text-st-purple px-5 py-2.5 rounded-xl font-bold hover:bg-st-purple/20 transition-all text-sm uppercase tracking-wide">
                             Вибрати
                         </button>
                     </div>`;
@@ -488,9 +486,9 @@
                 } else if (isOutOfStock) {
                     btnHtml = `<button disabled class="w-full mt-3 bg-gray-100 text-gray-400 font-bold py-2.5 rounded-lg text-sm cursor-not-allowed">Немає в наявності</button>`;
                 } else if (hasWarnings) {
-                    btnHtml = `<button onclick="selectPart(${p.id})" class="w-full mt-3 bg-orange-100 text-orange-600 hover:bg-orange-500 hover:text-white font-bold py-2.5 rounded-lg text-sm transition-colors uppercase tracking-wide">Додати попри це</button>`;
+                    btnHtml = `<button onclick="selectPart(${p.id})" class="w-full mt-3 bg-orange-100 text-orange-600 hover:bg-orange-200 font-bold py-2.5 rounded-lg text-sm transition-colors uppercase tracking-wide">Додати попри це</button>`;
                 } else {
-                    btnHtml = `<button onclick="selectPart(${p.id})" class="w-full mt-3 bg-st-purple/10 text-st-purple hover:bg-st-purple hover:text-white font-bold py-2.5 rounded-lg text-sm transition-colors uppercase tracking-wide">Додати в збірку</button>`;
+                    btnHtml = `<button onclick="selectPart(${p.id})" class="w-full mt-3 bg-st-purple/10 text-st-purple hover:bg-st-purple/20 font-bold py-2.5 rounded-lg text-sm transition-colors uppercase tracking-wide">Додати в збірку</button>`;
                 }
 
                 const borderClass = isSelected ? 'border-green-500 shadow-md' : (hasWarnings ? 'border-orange-300 bg-orange-50/30' : 'border-gray-200 hover:border-st-purple/30');
@@ -671,19 +669,6 @@
             // no dropdown on ConfigPC, placeholder
         }
 
-        async function loadBalance() {
-            try {
-                const res = await fetch('/api/balance');
-                if (!res.ok) return;
-                const data = await res.json();
-                const badge = document.getElementById('user-balance-badge');
-                if (badge) {
-                    badge.textContent = data.balance.toLocaleString('uk-UA') + ' ₴';
-                    badge.classList.remove('hidden');
-                }
-            } catch (e) {}
-        }
-
         // --- Оформлення замовлення ---
         async function checkout() {
             if (!IS_AUTHENTICATED) {
@@ -718,34 +703,34 @@
                 // Успіх
                 cart = [];
                 saveCart();
-                
+                updateCartUI();
+
+                // Redirect на сторінку оплати Monobank
+                if (data.pageUrl) {
+                    window.location.href = data.pageUrl;
+                    return;
+                }
+
+                // Fallback якщо pageUrl немає
                 const container = document.getElementById('cart-items');
                 container.innerHTML = `
                     <div class="text-center py-12">
                         <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <i class="fas fa-check text-green-500 text-3xl"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">Замовлення оформлено!</h3>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Замовлення створено!</h3>
                         <p class="text-gray-500 text-sm mb-1">Замовлення #${data.orderId}</p>
-                        <p class="text-gray-500 text-sm">Залишок балансу: <span class="font-bold text-st-purple">${data.newBalance} ₴</span></p>
+                        <p class="text-gray-500 text-sm">Очікується оплата</p>
                     </div>`;
                 
-                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Оплачено';
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Створено';
                 btn.classList.replace('bg-st-purple', 'bg-green-500');
 
-                // Оновлюємо бейдж балансу
-                const badge = document.getElementById('user-balance-badge');
-                if (badge) {
-                    badge.textContent = data.newBalance.toLocaleString('uk-UA') + ' ₴';
-                }
-                
                 setTimeout(() => {
                     btn.disabled = false;
                     btn.innerHTML = 'Оформити замовлення';
                     btn.classList.replace('bg-green-500', 'bg-st-purple');
                 }, 5000);
-
-                loadData();
 
             } catch (e) {
                 alert('Помилка з\'єднання з сервером');

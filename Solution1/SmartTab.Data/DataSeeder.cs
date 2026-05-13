@@ -21,16 +21,16 @@ public static class DataSeeder
 
         // Seed Manufacturers
         modelBuilder.Entity<Manufacturer>().HasData(
-            new Manufacturer { Id = 1, Name = "Intel" },
-            new Manufacturer { Id = 2, Name = "AMD" },
-            new Manufacturer { Id = 3, Name = "NVIDIA" },
-            new Manufacturer { Id = 4, Name = "ASUS" },
-            new Manufacturer { Id = 5, Name = "MSI" },
-            new Manufacturer { Id = 6, Name = "Gigabyte" },
-            new Manufacturer { Id = 7, Name = "Kingston" },
-            new Manufacturer { Id = 8, Name = "Samsung" },
-            new Manufacturer { Id = 9, Name = "Corsair" },
-            new Manufacturer { Id = 10, Name = "Cooler Master" }
+            new Manufacturer { Id = 1, Name = "Intel", Country = "United States" },
+            new Manufacturer { Id = 2, Name = "AMD", Country = "United States" },
+            new Manufacturer { Id = 3, Name = "NVIDIA", Country = "United States" },
+            new Manufacturer { Id = 4, Name = "ASUS", Country = "Taiwan" },
+            new Manufacturer { Id = 5, Name = "MSI", Country = "Taiwan" },
+            new Manufacturer { Id = 6, Name = "Gigabyte", Country = "Taiwan" },
+            new Manufacturer { Id = 7, Name = "Kingston", Country = "United States" },
+            new Manufacturer { Id = 8, Name = "Samsung", Country = "South Korea" },
+            new Manufacturer { Id = 9, Name = "Corsair", Country = "United States" },
+            new Manufacturer { Id = 10, Name = "Cooler Master", Country = "Taiwan" }
         );
 
         // Seed Roles

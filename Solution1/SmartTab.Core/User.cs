@@ -14,7 +14,6 @@ public class User
 
     public string Password { get; set; } = null!;
     public bool IsActive { get; set; } = true;
-    public decimal Balance { get; set; } = 100000m;
 
     public string? ResetToken { get; set; }
     public DateTime? ResetTokenExpiry { get; set; }

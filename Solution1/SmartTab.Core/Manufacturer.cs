@@ -16,5 +16,8 @@ public class Manufacturer
     [MaxLength(255)]
     public string? WebsiteUrl { get; set; }
 
+    [MaxLength(100)]
+    public string? Country { get; set; }
+
     public ICollection<Product> Products { get; set; } = new List<Product>();
 }

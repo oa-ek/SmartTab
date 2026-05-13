@@ -103,7 +103,6 @@
                             <button id="user-menu-btn" onclick="toggleUserMenu()" class="flex items-center gap-2 text-white hover:text-st-purple transition-colors">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                 <span class="font-medium text-[15px] max-w-[120px] truncate">@userName</span>
-                                <span id="user-balance-badge" class="text-xs font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full hidden"></span>
                                 <i id="user-menu-chevron" class="fas fa-chevron-down text-xs text-gray-400"></i>
                             </button>
                             <div id="user-menu-dropdown" class="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 hidden z-50">
@@ -210,7 +209,7 @@
         const IS_AUTHENTICATED = @(isAuthenticated ? "true" : "false");
         let allProducts = [], allManufacturers = [], allCategories = [], cart = [];
 
-        document.addEventListener('DOMContentLoaded', () => { loadData(); if (IS_AUTHENTICATED) loadBalance(); });
+        document.addEventListener('DOMContentLoaded', () => { loadData(); });
 
         function toggleUserMenu() {
             const drop = document.getElementById('user-menu-dropdown');
@@ -418,19 +417,6 @@
             document.getElementById('auth-modal-overlay').classList.add('hidden'); 
         }
 
-        async function loadBalance() {
-            try {
-                const res = await fetch('/api/balance');
-                if (!res.ok) return;
-                const data = await res.json();
-                const badge = document.getElementById('user-balance-badge');
-                if (badge) {
-                    badge.textContent = data.balance.toLocaleString('uk-UA') + ' ₴';
-                    badge.classList.remove('hidden');
-                }
-            } catch (e) {}
-        }
-
         async function checkout() { 
             if (!IS_AUTHENTICATED) {
                 document.getElementById('auth-modal-overlay').classList.remove('hidden');
@@ -462,29 +448,28 @@
 
                 cart = [];
                 saveCart();
+                updateCartUI();
 
+                // Redirect на сторінку оплати Monobank
+                if (data.pageUrl) {
+                    window.location.href = data.pageUrl;
+                    return;
+                }
+
+                // Fallback якщо pageUrl немає
                 const container = document.getElementById('cart-items');
                 container.innerHTML = `
                     <div class="text-center py-12">
                         <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <i class="fas fa-check text-green-500 text-3xl"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">Замовлення оформлено!</h3>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Замовлення створено!</h3>
                         <p class="text-gray-500 text-sm mb-1">Замовлення #${data.orderId}</p>
-                        <p class="text-gray-500 text-sm">Залишок балансу: <span class="font-bold text-st-purple">${data.newBalance} ₴</span></p>
+                        <p class="text-gray-500 text-sm">Очікується оплата</p>
                     </div>`;
                 
-                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Оплачено';
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Створено';
                 btn.classList.replace('bg-st-purple', 'bg-green-500');
-
-                // Оновлюємо бейдж балансу
-                const badge = document.getElementById('user-balance-badge');
-                if (badge) {
-                    badge.textContent = data.newBalance.toLocaleString('uk-UA') + ' ₴';
-                }
-                
-                // Перезавантажуємо дані товарів щоб оновити залишки
-                loadData();
 
                 setTimeout(() => {
                     btn.disabled = false;

@@ -11,11 +11,6 @@ public class OrderItemRequest
     public int Quantity { get; set; }
 }
 
-public class UpdateBalanceRequest
-{
-    public decimal Balance { get; set; }
-}
-
 public class ReceiptItem
 {
     public string ProductName { get; set; } = null!;

@@ -15,6 +15,7 @@ using SmartTab.Core;
 using SmartTab.Data;
 using SmartTab.UI;
 using SmartTab.UI.Models;
+using SmartTab.UI.Models.Monobank;
 using SmartTab.UI.Services;
 
 namespace SmartTab.UI.Controllers
@@ -24,12 +25,24 @@ namespace SmartTab.UI.Controllers
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly EmailService _emailService;
+        private readonly IMonobankService _monobankService;
+        private readonly ICurrencyApiService _currencyService;
+        private readonly ICountryApiService _countryService;
 
-        public HomeController(AppDbContext context, IWebHostEnvironment environment, EmailService emailService)
+        public HomeController(
+            AppDbContext context,
+            IWebHostEnvironment environment,
+            EmailService emailService,
+            IMonobankService monobankService,
+            ICurrencyApiService currencyService,
+            ICountryApiService countryService)
         {
             _context = context;
             _environment = environment;
             _emailService = emailService;
+            _monobankService = monobankService;
+            _currencyService = currencyService;
+            _countryService = countryService;
         }
 
         public IActionResult Index() => View();
@@ -67,6 +80,78 @@ namespace SmartTab.UI.Controllers
             if (product == null) return NotFound();
 
             return Ok(product);
+        }
+
+        // GET: /api/products/{id}/enriched — збагачена картка товару (3 зовнішні API)
+        [HttpGet("api/products/{id}/enriched")]
+        public async Task<IActionResult> GetProductEnriched(int id)
+        {
+            var product = await _context.Products
+                .Include(p => p.Category)
+                .Include(p => p.Manufacturer)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null) return NotFound(new { error = "Товар не знайдено" });
+
+            var vm = new Models.ExternalApi.ProductEnrichedViewModel
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                PriceUah = product.Price,
+                ImageUrl = product.ImageUrl,
+                CategoryName = product.Category?.Name,
+                ManufacturerName = product.Manufacturer?.Name
+            };
+
+            // 1. NBU API — курс валют
+            var usdRate = await _currencyService.GetRateAsync("USD");
+            var eurRate = await _currencyService.GetRateAsync("EUR");
+            if (usdRate.HasValue && eurRate.HasValue)
+            {
+                vm.UsdRate = usdRate.Value;
+                vm.EurRate = eurRate.Value;
+                vm.PriceUsd = Math.Round(product.Price / usdRate.Value, 2);
+                vm.PriceEur = Math.Round(product.Price / eurRate.Value, 2);
+                vm.CurrencyAvailable = true;
+            }
+
+            // 2. REST Countries — країна виробника
+            var countryName = product.Manufacturer?.Country;
+            if (!string.IsNullOrEmpty(countryName))
+            {
+                var country = await _countryService.GetCountryInfoAsync(countryName);
+                if (country != null)
+                {
+                    vm.CountryName = country.Name?.Common;
+                    vm.CountryOfficialName = country.Name?.Official;
+                    vm.CountryFlagUrl = country.Flags?.Svg ?? country.Flags?.Png;
+                    vm.CountryCapital = country.Capital?.FirstOrDefault();
+                    vm.CountryRegion = country.Region;
+                    vm.CountryPopulation = country.Population;
+                    vm.CountryCurrency = country.Currencies?.Values.FirstOrDefault()?.Name;
+                    vm.CountryLanguages = country.Languages != null
+                        ? string.Join(", ", country.Languages.Values)
+                        : null;
+                    vm.CountryAvailable = true;
+
+                    // 3. ЛАНЦЮЖОК: REST Countries → NBU
+                    // Отримуємо код валюти країни виробника → запитуємо курс у НБУ
+                    var countryCurrencyCode = country.Currencies?.Keys.FirstOrDefault();
+                    if (!string.IsNullOrEmpty(countryCurrencyCode) && countryCurrencyCode != "UAH")
+                    {
+                        var localRate = await _currencyService.GetRateAsync(countryCurrencyCode);
+                        if (localRate.HasValue)
+                        {
+                            vm.ManufacturerCurrencyCode = countryCurrencyCode;
+                            vm.ManufacturerCurrencyRate = localRate.Value;
+                            vm.PriceInManufacturerCurrency = Math.Round(product.Price / localRate.Value, 2);
+                            vm.ManufacturerCurrencyAvailable = true;
+                        }
+                    }
+                }
+            }
+
+            return Ok(vm);
         }
 
         [HttpGet("api/inventory/{productId}")]
@@ -186,7 +271,7 @@ namespace SmartTab.UI.Controllers
         }
 
         [HttpPost("api/manufacturers")]
-        public async Task<IActionResult> AddManufacturer([FromForm] string name, [FromForm] string? description, [FromForm] string? websiteUrl)
+        public async Task<IActionResult> AddManufacturer([FromForm] string name, [FromForm] string? description, [FromForm] string? websiteUrl, [FromForm] string? country)
         {
             try
             {
@@ -203,7 +288,8 @@ namespace SmartTab.UI.Controllers
                 {
                     Name = name.Trim(),
                     Description = description?.Trim(),
-                    WebsiteUrl = websiteUrl?.Trim()
+                    WebsiteUrl = websiteUrl?.Trim(),
+                    Country = country?.Trim()
                 };
 
                 _context.Manufacturers.Add(manufacturer);
@@ -218,7 +304,7 @@ namespace SmartTab.UI.Controllers
         }
 
         [HttpPut("api/manufacturers/{id}")]
-        public async Task<IActionResult> UpdateManufacturer(int id, [FromForm] string name, [FromForm] string? description, [FromForm] string? websiteUrl)
+        public async Task<IActionResult> UpdateManufacturer(int id, [FromForm] string name, [FromForm] string? description, [FromForm] string? websiteUrl, [FromForm] string? country)
         {
             try
             {
@@ -238,6 +324,7 @@ namespace SmartTab.UI.Controllers
                 manufacturer.Name = name.Trim();
                 manufacturer.Description = description?.Trim();
                 manufacturer.WebsiteUrl = websiteUrl?.Trim();
+                manufacturer.Country = country?.Trim();
 
                 await _context.SaveChangesAsync();
 
@@ -552,17 +639,6 @@ namespace SmartTab.UI.Controllers
             }
         }
 
-        // GET: /api/balance
-        [HttpGet("api/balance")]
-        [Authorize]
-        public async Task<IActionResult> GetBalance()
-        {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null) return NotFound();
-            return Ok(new { balance = user.Balance });
-        }
-
         // POST: /api/orders
         [HttpPost("api/orders")]
         [Authorize]
@@ -571,6 +647,9 @@ namespace SmartTab.UI.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                if (User.IsInRole("Admin"))
+                    return BadRequest(new { error = "Адміністратор не може здійснювати покупки" });
+
                 if (request.Items == null || request.Items.Count == 0)
                     return BadRequest(new { error = "Кошик порожній" });
 
@@ -607,17 +686,13 @@ namespace SmartTab.UI.Controllers
                     });
                 }
 
-                // Перевіряємо баланс
-                if (user.Balance < totalPrice)
-                    return BadRequest(new { error = $"Недостатньо коштів. Потрібно: {totalPrice} ₴, баланс: {user.Balance} ₴" });
-
-                // Створюємо замовлення
+                // Створюємо замовлення зі статусом "Очікує оплати"
                 var order = new Order
                 {
                     UserId = userId,
                     OrderDate = DateTime.Now,
                     Price = totalPrice,
-                    Status = "Оплачено"
+                    Status = "Очікує оплати"
                 };
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
@@ -630,17 +705,88 @@ namespace SmartTab.UI.Controllers
                 }
                 await _context.SaveChangesAsync();
 
-                // Оновлюємо кількість на складі та списуємо баланс
+                // Резервуємо товар на складі (щоб інші не могли купити)
                 foreach (var oi in orderItems)
                 {
                     var product = products.First(p => p.Id == oi.ProductId);
                     product.StockCount -= oi.Quantity;
                 }
-                user.Balance -= totalPrice;
                 await _context.SaveChangesAsync();
 
-                // Прив'язуємо InventoryItems (якщо є)
-                foreach (var oi in orderItems)
+                // Створюємо інвойс Monobank
+                var basketItems = orderItems.Select(oi =>
+                {
+                    var product = products.First(p => p.Id == oi.ProductId);
+                    return new MonobankBasketItem
+                    {
+                        Name = product.Name,
+                        Qty = oi.Quantity,
+                        Sum = (long)(oi.UnitPrice * 100),
+                        Total = (long)(oi.UnitPrice * oi.Quantity * 100),
+                        Unit = "шт."
+                    };
+                }).ToList();
+
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var redirectUrl = $"{baseUrl}/Account/Profile?order={order.Id}";
+                var webHookUrl = $"{baseUrl}/api/monobank/webhook";
+
+                var invoice = await _monobankService.CreateInvoiceAsync(
+                    (long)(totalPrice * 100),
+                    order.Id.ToString(),
+                    basketItems,
+                    redirectUrl,
+                    webHookUrl
+                );
+
+                if (invoice == null)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { error = "Не вдалося створити рахунок для оплати. Спробуйте пізніше." });
+                }
+
+                // Зберігаємо invoiceId
+                order.MonobankInvoiceId = invoice.InvoiceId;
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                return Ok(new { success = true, orderId = order.Id, pageUrl = invoice.PageUrl });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(new { error = $"Помилка: {ex.Message}" });
+            }
+        }
+
+        // POST: /api/monobank/webhook — callback від Monobank після оплати
+        [HttpPost("api/monobank/webhook")]
+        [AllowAnonymous]
+        public async Task<IActionResult> MonobankWebhook([FromBody] MonobankWebhookPayload payload)
+        {
+            if (string.IsNullOrEmpty(payload?.InvoiceId))
+                return BadRequest();
+
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.User)
+                .FirstOrDefaultAsync(o => o.MonobankInvoiceId == payload.InvoiceId);
+
+            if (order == null)
+                return Ok();
+
+            if (payload.Status == "success" && order.Status == "Очікує оплати")
+            {
+                order.Status = "Оплачено";
+
+                var productIds = order.OrderItems.Select(oi => oi.ProductId).ToList();
+                var products = await _context.Products
+                    .Include(p => p.InventoryItems.Where(inv => !inv.IsSold))
+                    .Where(p => productIds.Contains(p.Id))
+                    .ToListAsync();
+
+                foreach (var oi in order.OrderItems)
                 {
                     var product = products.First(p => p.Id == oi.ProductId);
                     var availableInventory = product.InventoryItems
@@ -648,19 +794,32 @@ namespace SmartTab.UI.Controllers
                         .Take(oi.Quantity)
                         .ToList();
 
+                    var missing = oi.Quantity - availableInventory.Count;
+                    if (missing > 0)
+                    {
+                        for (int i = 0; i < missing; i++)
+                        {
+                            var newInv = new InventoryItem
+                            {
+                                ProductId = product.Id,
+                                SerialNumber = $"SN-{product.Name.Replace(" ", "").ToUpper()}-{Guid.NewGuid().ToString().Substring(0, 6)}",
+                                IsSold = false
+                            };
+                            _context.InventoryItems.Add(newInv);
+                            availableInventory.Add(newInv);
+                        }
+                    }
+
                     foreach (var inv in availableInventory)
                     {
                         inv.IsSold = true;
                         inv.OrderItemId = oi.Id;
                     }
                 }
-                if (_context.ChangeTracker.HasChanges())
-                    await _context.SaveChangesAsync();
 
-                await transaction.CommitAsync();
+                await _context.SaveChangesAsync();
 
-                // Відправляємо чек на пошту
-                var receiptItems = orderItems.Select(oi =>
+                var receiptItems = order.OrderItems.Select(oi =>
                 {
                     var product = products.First(p => p.Id == oi.ProductId);
                     var serials = product.InventoryItems
@@ -677,15 +836,27 @@ namespace SmartTab.UI.Controllers
                 }).ToList();
 
                 _ = _emailService.SendOrderReceiptEmailAsync(
-                    user.Email, user.FirstName, order.Id, order.OrderDate, totalPrice, receiptItems);
-
-                return Ok(new { success = true, orderId = order.Id, newBalance = user.Balance });
+                    order.User.Email, order.User.FirstName, order.Id, order.OrderDate, order.Price, receiptItems);
             }
-            catch (Exception ex)
+            else if (payload.Status == "failure" || payload.Status == "reversed")
             {
-                await transaction.RollbackAsync();
-                return BadRequest(new { error = $"Помилка: {ex.Message}" });
+                order.Status = payload.Status == "reversed" ? "Повернено" : "Скасовано";
+
+                var productIds = order.OrderItems.Select(oi => oi.ProductId).ToList();
+                var products = await _context.Products
+                    .Where(p => productIds.Contains(p.Id))
+                    .ToListAsync();
+
+                foreach (var oi in order.OrderItems)
+                {
+                    var product = products.First(p => p.Id == oi.ProductId);
+                    product.StockCount += oi.Quantity;
+                }
+
+                await _context.SaveChangesAsync();
             }
+
+            return Ok();
         }
 
         // GET: /api/orders/my
@@ -731,25 +902,10 @@ namespace SmartTab.UI.Controllers
                     u.FirstName,
                     u.LastName,
                     u.Email,
-                    u.Balance,
                     Role = u.Role.Name
                 })
                 .ToListAsync();
             return Ok(users);
-        }
-
-        // PUT: /api/users/{id}/balance (Admin only)
-        [HttpPut("api/users/{id}/balance")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateUserBalance(int id, [FromBody] UpdateBalanceRequest request)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound(new { error = "Користувача не знайдено" });
-
-            user.Balance = request.Balance;
-            await _context.SaveChangesAsync();
-
-            return Ok(new { success = true, newBalance = user.Balance });
         }
 
         // DELETE: /api/orders/{id} (Admin only) — видалення порожніх замовлень

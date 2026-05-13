@@ -13,7 +13,32 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddTransient<EmailService>();
 
+builder.Services.AddHttpClient<IMonobankService, MonobankService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.monobank.ua/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
+// External API Services
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient<ICurrencyApiService, CurrencyApiService>(client =>
+{
+    client.BaseAddress = new Uri("https://bank.gov.ua/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).AddStandardResilienceHandler();
+
+builder.Services.AddHttpClient<ICountryApiService, CountryApiService>(client =>
+{
+    client.BaseAddress = new Uri("https://restcountries.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).AddStandardResilienceHandler();
+
 builder.Services.AddControllersWithViews();
+
+// Swagger / OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // Cookie Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -31,6 +56,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartTab API v1");
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
