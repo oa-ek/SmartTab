@@ -4,6 +4,7 @@
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var userName = isAuthenticated ? User.Identity!.Name : "";
     var userRole = isAuthenticated ? User.FindFirst(ClaimTypes.Role)?.Value : "";
+    var userId = isAuthenticated ? User.FindFirst(ClaimTypes.NameIdentifier)?.Value : null;
 }
 
 <!DOCTYPE html>
@@ -196,6 +197,8 @@
 
     <script>
         const IS_AUTHENTICATED = @(isAuthenticated ? "true" : "false");
+        const USER_ID = '@(userId ?? "")';
+        const CART_KEY = USER_ID ? `smarttab_cart_${USER_ID}` : 'smarttab_cart';
         let allProducts = [], allCategories = [], cart = [];
         
         // Слоти для збірки ПК та ключові слова для пошуку відповідних категорій у твоїй базі
@@ -581,23 +584,40 @@
 
         // --- Стандартна логіка кошика ---
         function loadCart() {
-            const saved = localStorage.getItem('smarttab_cart');
+            const saved = localStorage.getItem(CART_KEY);
             if (saved) {
                 cart = JSON.parse(saved);
-                cart = cart.filter(i => {
-                    const actual = allProducts.find(p => p.id === i.id);
-                    if (actual) {
-                        i.stockCount = actual.stockCount;
-                        if (i.quantity > actual.stockCount) i.quantity = actual.stockCount;
-                    }
-                    return i.quantity > 0;
-                });
-                saveCart();
             }
+
+            if (IS_AUTHENTICATED && USER_ID) {
+                const guestCart = localStorage.getItem('smarttab_cart');
+                if (guestCart) {
+                    const guestItems = JSON.parse(guestCart);
+                    guestItems.forEach(gi => {
+                        const existing = cart.find(i => i.id === gi.id);
+                        if (existing) {
+                            existing.quantity = Math.min(existing.quantity + gi.quantity, existing.stockCount || 99);
+                        } else {
+                            cart.push(gi);
+                        }
+                    });
+                    localStorage.removeItem('smarttab_cart');
+                }
+            }
+
+            cart = cart.filter(i => {
+                const actual = allProducts.find(p => p.id === i.id);
+                if (actual) {
+                    i.stockCount = actual.stockCount;
+                    if (i.quantity > actual.stockCount) i.quantity = actual.stockCount;
+                }
+                return i.quantity > 0;
+            });
+            saveCart();
         }
 
         function saveCart() {
-            localStorage.setItem('smarttab_cart', JSON.stringify(cart));
+            localStorage.setItem(CART_KEY, JSON.stringify(cart));
             updateCartUI();
         }
 

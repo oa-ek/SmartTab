@@ -3,6 +3,7 @@
     Layout = null;
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var userName = isAuthenticated ? User.Identity!.Name : "";
+    var userId = isAuthenticated ? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value : null;
 }
 
 <!DOCTYPE html>
@@ -236,6 +237,8 @@
 
     <script>
         const IS_AUTHENTICATED = @(isAuthenticated ? "true" : "false");
+        const USER_ID = '@(userId ?? "")';
+        const CART_KEY = USER_ID ? `smarttab_cart_${USER_ID}` : 'smarttab_cart';
         let currentProduct = null;
         let cart = [];
         let allProductsCache = [];
@@ -488,10 +491,6 @@
 
         // Швидке додавання з горизонтальних списків
         function addToCartSimple(productId, stockCount) {
-            if (!IS_AUTHENTICATED) {
-                document.getElementById('auth-modal-overlay').classList.remove('hidden');
-                return;
-            }
             if (stockCount <= 0) {
                 alert('Товару немає в наявності!');
                 return;
@@ -514,20 +513,33 @@
 
         // --- CART SYSTEM ---
         function loadCart() {
-            const saved = localStorage.getItem('smarttab_cart');
-            if (saved) { cart = JSON.parse(saved); updateCartUI(); }
+            const saved = localStorage.getItem(CART_KEY);
+            if (saved) { cart = JSON.parse(saved); }
+
+            if (IS_AUTHENTICATED && USER_ID) {
+                const guestCart = localStorage.getItem('smarttab_cart');
+                if (guestCart) {
+                    const guestItems = JSON.parse(guestCart);
+                    guestItems.forEach(gi => {
+                        const existing = cart.find(i => i.id === gi.id);
+                        if (existing) {
+                            existing.quantity = Math.min(existing.quantity + gi.quantity, existing.stockCount || 99);
+                        } else {
+                            cart.push(gi);
+                        }
+                    });
+                    localStorage.removeItem('smarttab_cart');
+                }
+            }
+            saveCart();
         }
 
         function saveCart() {
-            localStorage.setItem('smarttab_cart', JSON.stringify(cart));
+            localStorage.setItem(CART_KEY, JSON.stringify(cart));
             updateCartUI();
         }
 
         function addToCartFromPage() {
-            if (!IS_AUTHENTICATED) {
-                document.getElementById('auth-modal-overlay').classList.remove('hidden');
-                return;
-            }
             if (!currentProduct) return;
 
             const existing = cart.find(i => i.id === currentProduct.id);
