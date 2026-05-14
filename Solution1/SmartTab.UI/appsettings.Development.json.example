@@ -6,6 +6,9 @@
     }
   },
   "ApiKeys": {
-    "Pexels": "YOUR_PEXELS_API_KEY_HERE"
+    "Pexels": "5UleIw9qAMmk6Pouk7l7GeRh4jvXSCzN4WNA02cpPvGYsPFUdBYF4Jr2"
+  },
+  "Monobank": {
+    "Token": "utxmCDpWXK2eHH2rQBaMjbi--uPIxg7UkU5WwoSStsFo"
   }
 }

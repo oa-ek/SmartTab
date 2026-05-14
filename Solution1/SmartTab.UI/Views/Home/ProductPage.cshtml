@@ -144,10 +144,7 @@
                                         <span id="mfg-currency-label" class="text-sm text-gray-500 font-medium">Валюта виробника</span>
                                         <span id="price-mfg" class="text-lg font-black text-gray-800">—</span>
                                     </div>
-                                    <div class="pt-2 border-t border-green-200/50">
-                                        <p class="text-[11px] text-gray-400">Курс НБУ: 1 USD = <span id="rate-usd">—</span> ₴ | 1 EUR = <span id="rate-eur">—</span> ₴</p>
-                                        <p id="mfg-rate-info" class="hidden text-[11px] text-gray-400">Ланцюжок: REST Countries → НБУ | 1 <span id="mfg-code">—</span> = <span id="mfg-rate">—</span> ₴</p>
-                                    </div>
+                                    <div class="pt-2 border-t border-green-200/50"></div>
                                 </div>
                             </div>
 
@@ -328,8 +325,6 @@
                 if (data.currencyAvailable) {
                     document.getElementById('price-usd').innerText = `$ ${data.priceUsd}`;
                     document.getElementById('price-eur').innerText = `€ ${data.priceEur}`;
-                    document.getElementById('rate-usd').innerText = data.usdRate;
-                    document.getElementById('rate-eur').innerText = data.eurRate;
                     document.getElementById('currency-card').classList.remove('hidden');
                     anyAvailable = true;
                 } else {
@@ -356,9 +351,6 @@
                     document.getElementById('mfg-currency-label').innerText = `Валюта виробника (${data.manufacturerCurrencyCode})`;
                     document.getElementById('price-mfg').innerText = `${data.priceInManufacturerCurrency} ${data.manufacturerCurrencyCode}`;
                     document.getElementById('mfg-currency-row').classList.remove('hidden');
-                    document.getElementById('mfg-code').innerText = data.manufacturerCurrencyCode;
-                    document.getElementById('mfg-rate').innerText = data.manufacturerCurrencyRate;
-                    document.getElementById('mfg-rate-info').classList.remove('hidden');
                 }
 
                 if (anyAvailable) {
