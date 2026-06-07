@@ -96,31 +96,52 @@ public class ProductsApiController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var product = new Product
+        // Перевірка існування категорії
+        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+        if (!categoryExists)
+            return BadRequest(new { error = $"Категорію з Id={dto.CategoryId} не знайдено" });
+
+        // Перевірка існування виробника (якщо вказано)
+        if (dto.ManufacturerId.HasValue)
         {
-            Name = dto.Name,
-            Description = dto.Description,
-            Price = dto.Price,
-            ImageUrl = dto.ImageUrl,
-            StockCount = dto.StockCount,
-            CategoryId = dto.CategoryId,
-            ManufacturerId = dto.ManufacturerId
-        };
+            var manufacturerExists = await _context.Manufacturers.AnyAsync(m => m.Id == dto.ManufacturerId.Value);
+            if (!manufacturerExists)
+                return BadRequest(new { error = $"Виробника з Id={dto.ManufacturerId} не знайдено" });
+        }
 
-        _context.Products.Add(product);
-        await _context.SaveChangesAsync();
-
-        var result = new ProductApiDto
+        try
         {
-            Id = product.Id,
-            Name = product.Name,
-            Description = product.Description,
-            Price = product.Price,
-            ImageUrl = product.ImageUrl,
-            StockCount = product.StockCount
-        };
+            var product = new Product
+            {
+                Name = dto.Name,
+                Description = dto.Description,
+                Price = dto.Price,
+                ImageUrl = dto.ImageUrl,
+                StockCount = dto.StockCount,
+                CategoryId = dto.CategoryId,
+                ManufacturerId = dto.ManufacturerId,
+                Type = dto.Type
+            };
 
-        return CreatedAtAction(nameof(GetById), new { id = product.Id }, result);
+            _context.Products.Add(product);
+            await _context.SaveChangesAsync();
+
+            var result = new ProductApiDto
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                ImageUrl = product.ImageUrl,
+                StockCount = product.StockCount
+            };
+
+            return CreatedAtAction(nameof(GetById), new { id = product.Id }, result);
+        }
+        catch (DbUpdateException ex)
+        {
+            return BadRequest(new { error = "Помилка збереження в БД", details = ex.InnerException?.Message ?? ex.Message });
+        }
     }
 
     /// <summary>
@@ -146,6 +167,7 @@ public class ProductsApiController : ControllerBase
         product.StockCount = dto.StockCount;
         product.CategoryId = dto.CategoryId;
         product.ManufacturerId = dto.ManufacturerId;
+        product.Type = dto.Type;
 
         await _context.SaveChangesAsync();
 
@@ -209,6 +231,7 @@ public class CreateProductApiDto
     public int StockCount { get; set; }
     public int CategoryId { get; set; }
     public int? ManufacturerId { get; set; }
+    public ProductType Type { get; set; } = ProductType.Component;
 }
 
 public class UpdateProductApiDto
@@ -220,4 +243,5 @@ public class UpdateProductApiDto
     public int StockCount { get; set; }
     public int CategoryId { get; set; }
     public int? ManufacturerId { get; set; }
+    public ProductType Type { get; set; } = ProductType.Component;
 }

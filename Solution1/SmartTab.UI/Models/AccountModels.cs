@@ -19,6 +19,7 @@ public class RegisterViewModel
 
     [Required(ErrorMessage = "Введіть пароль")]
     [MinLength(6, ErrorMessage = "Пароль має бути не менше 6 символів")]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Пароль має містити мінімум одну велику літеру та одну цифру")]
     [Display(Name = "Пароль")]
     [DataType(DataType.Password)]
     public string Password { get; set; } = null!;
@@ -70,6 +71,7 @@ public class ProfileViewModel
 
     [Display(Name = "Новий пароль (залиште порожнім, якщо не змінюєте)")]
     [MinLength(6, ErrorMessage = "Пароль має бути не менше 6 символів")]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Пароль має містити мінімум одну велику літеру та одну цифру")]
     [DataType(DataType.Password)]
     public string? NewPassword { get; set; }
 
@@ -101,6 +103,7 @@ public class ResetPasswordViewModel
 
     [Required(ErrorMessage = "Введіть новий пароль")]
     [MinLength(6, ErrorMessage = "Пароль має бути не менше 6 символів")]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Пароль має містити мінімум одну велику літеру та одну цифру")]
     [Display(Name = "Новий пароль")]
     [DataType(DataType.Password)]
     public string Password { get; set; } = null!;
