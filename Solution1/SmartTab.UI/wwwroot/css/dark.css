@@ -1,0 +1,141 @@
+/* ═══════════════════════════════════════════════════════════
+   SmartTab — Темна тема
+   Активується коли <html class="dark">
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Перехід кольорів ── */
+*,
+*::before,
+*::after {
+    transition: background-color 0.25s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* ── Фон сторінки ── */
+html.dark body {
+    background-color: #0f0f0f !important;
+    color: #e5e7eb !important;
+}
+
+/* ── Білі карточки / блоки ── */
+html.dark .bg-white {
+    background-color: #1a1a1a !important;
+}
+html.dark .bg-gray-50 {
+    background-color: #141414 !important;
+}
+html.dark .bg-gray-100 {
+    background-color: #1f1f1f !important;
+}
+html.dark .bg-\[\#f8f9fa\] {
+    background-color: #0f0f0f !important;
+}
+
+/* ── Текст ── */
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+    color: #f3f4f6 !important;
+}
+html.dark .text-gray-700 {
+    color: #d1d5db !important;
+}
+html.dark .text-gray-600 {
+    color: #9ca3af !important;
+}
+html.dark .text-gray-500 {
+    color: #6b7280 !important;
+}
+
+/* ── Бордери ── */
+html.dark .border-gray-100 {
+    border-color: #2a2a2a !important;
+}
+html.dark .border-gray-200 {
+    border-color: #333 !important;
+}
+
+/* ── Інпути ── */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark textarea,
+html.dark select {
+    background-color: #1f1f1f !important;
+    color: #f3f4f6 !important;
+    border-color: #333 !important;
+}
+html.dark input:disabled {
+    background-color: #161616 !important;
+    color: #6b7280 !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+    color: #6b7280 !important;
+}
+
+/* ── Навбар (вже темний #212121 — майже не треба) ── */
+html.dark header.bg-\[\#212121\] {
+    border-color: #1a1a1a !important;
+}
+
+/* ── Дропдаун меню юзера ── */
+html.dark #user-menu-dropdown {
+    background-color: #1a1a1a !important;
+    border-color: #2a2a2a !important;
+}
+html.dark #user-menu-dropdown a,
+html.dark #user-menu-dropdown button {
+    color: #d1d5db !important;
+}
+html.dark #user-menu-dropdown a:hover,
+html.dark #user-menu-dropdown button:hover {
+    background-color: #2a2a2a !important;
+}
+
+/* ── Сайдбар фільтрів (Index) ── */
+html.dark aside.bg-white {
+    background-color: #1a1a1a !important;
+    border-color: #2a2a2a !important;
+}
+html.dark aside .bg-gray-50 {
+    background-color: #141414 !important;
+}
+html.dark .filter-checkbox {
+    background-color: #1f1f1f !important;
+    border-color: #444 !important;
+}
+
+/* ── Картки товарів ── */
+html.dark .border-gray-200.rounded-xl {
+    background-color: #1a1a1a !important;
+    border-color: #2a2a2a !important;
+}
+
+/* ── Кошик (панель) ── */
+html.dark #cart-panel {
+    background-color: #1a1a1a !important;
+}
+html.dark #cart-panel .bg-gray-50 {
+    background-color: #141414 !important;
+}
+html.dark #cart-panel .bg-white {
+    background-color: #222 !important;
+}
+
+/* ── Модалки / оверлеї ── */
+html.dark .bg-white.rounded-2xl,
+html.dark .bg-white.rounded-xl {
+    background-color: #1a1a1a !important;
+}
+
+/* ── Тіні ── */
+html.dark .shadow-xl,
+html.dark .shadow-lg,
+html.dark .shadow-sm {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
+}
+
+/* ── scrollbar ── */
+html.dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #3a3a3a;
+}

@@ -9,6 +9,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мій профіль - SmartTab Store</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script src="~/js/theme.js"></script>
+    <link rel="stylesheet" href="~/css/dark.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { --st-purple: #6f00ff; --st-purple-hover: #5b00d6; }
@@ -68,9 +71,23 @@
             }
 
             <div class="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
-                    <h2 class="font-bold text-gray-800">Особисті дані</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Зареєстрований: @Model.RegistrationDate.ToString("dd.MM.yyyy")</p>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-bold text-gray-800">Особисті дані</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Зареєстрований: @Model.RegistrationDate.ToString("dd.MM.yyyy")</p>
+                    </div>
+
+                    <!-- Перемикач теми -->
+                    <button onclick="toggleTheme()"
+                            title="Змінити тему"
+                            class="flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
+                        <i id="theme-icon" class="fas fa-moon text-[15px]"></i>
+                        <div id="theme-track"
+                             style="position:relative; width:48px; height:24px; border-radius:9999px; background-color:#d1d5db; transition:background-color 0.3s; flex-shrink:0; cursor:pointer;">
+                            <div id="theme-thumb"
+                                 style="position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:white; box-shadow:0 1px 4px rgba(0,0,0,0.2); transition:transform 0.3s;"></div>
+                        </div>
+                    </button>
                 </div>
 
                 <form action="/Account/Profile" method="post" class="p-6 space-y-5">
@@ -154,8 +171,7 @@
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <i class="fas fa-lock text-gray-400 text-sm"></i>
                                     </div>
-                                    <input id="newPwd" name="NewPassword" type="password" maxlength="64" minlength="6" placeholder="Мінімум 6 символів" class="input-field pl-10 pr-10">
-                                    <button type="button" onclick="togglePwd('newPwd','eyeNew')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+<input id="newPwd" name="NewPassword" type="password" maxlength="64" minlength="6" pattern="^(?=.*[A-Z])(?=.*\d).{6,}$" title="Мінімум 6 символів, одна велика літера та одна цифра" placeholder="Мінімум 6 символів" class="input-field pl-10 pr-10">                                    <button type="button" onclick="togglePwd('newPwd','eyeNew')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                         <i id="eyeNew" class="fas fa-eye"></i>
                                     </button>
                                 </div>
